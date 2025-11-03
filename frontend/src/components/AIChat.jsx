@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const AIChat = () => {
+const AIChat = ({ onClose }) => {
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -114,6 +114,9 @@ const AIChat = () => {
         <div className="ai-header-actions-fixed">
           <button className="btn-clear-fixed" onClick={clearChat}>
             مسح المحادثة
+          </button>
+          <button className="btn-close-fixed" onClick={onClose}>
+            إغلاق
           </button>
         </div>
       </div>
