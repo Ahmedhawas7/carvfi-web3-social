@@ -1,360 +1,279 @@
 import React, { useState, useEffect } from 'react';
+import { Camera, Save, User, Mail, Globe, Twitter, Github, Upload } from 'lucide-react';
 
-const UserProfile = ({ user }) => {
-  const [profile, setProfile] = useState(null);
-  const [walletData, setWalletData] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({});
-  const [saveStatus, setSaveStatus] = useState('');
+const UserProfile = () => {
+  const [profile, setProfile] = useState({
+    username: '',
+    email: '',
+    avatar: '',
+    bio: '',
+    website: '',
+    twitter: '',
+    github: '',
+    walletAddress: ''
+  });
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle');
 
+  // محاكاة جلب بيانات الملف الشخصي
   useEffect(() => {
-    loadUserData();
-  }, [user]);
-
-  const loadUserData = () => {
-    // تحميل البيانات من localStorage أو إنشاء بيانات جديدة
-    const savedProfile = localStorage.getItem(`carvfi_profile_${user.address}`);
-    
-    if (savedProfile) {
-      const parsedProfile = JSON.parse(savedProfile);
-      setProfile(parsedProfile);
-      setEditForm(parsedProfile);
-    } else {
-      // بيانات افتراضية جديدة
-      const defaultProfile = {
-        username: user.type === 'evm' 
-          ? `user_${user.address.substring(2, 8)}` 
-          : `sol_${user.address.substring(0, 6)}`,
+    const fetchProfile = async () => {
+      // سيتم استبدال هذا ب API حقيقي
+      setProfile({
+        username: 'ahmedhawas',
+        email: 'ahmed@example.com',
         avatar: '',
-        bio: 'Web3 enthusiast and CARVFi user',
-        joinDate: Date.now(),
-        reputation: 85,
-        totalPoints: 150,
-        socialLinks: ['', ''],
-        isVerified: false
-      };
-      
-      setProfile(defaultProfile);
-      setEditForm(defaultProfile);
-      // حفظ البيانات الافتراضية
-      localStorage.setItem(`carvfi_profile_${user.address}`, JSON.stringify(defaultProfile));
-    }
-
-    // بيانات المحفظة
-    const walletInfo = user.type === 'evm' 
-      ? { balance: '2.5 ETH', network: 'Ethereum', transactions: 15 }
-      : { balance: '45 SOL', network: 'Solana', transactions: 8 };
-
-    setWalletData(walletInfo);
-  };
-
-  const handleEditToggle = () => {
-    if (isEditing) {
-      // إذا كان في وضع التعديل وضغط Cancel، نرجع للبيانات الأصلية
-      setEditForm(profile);
-    }
-    setIsEditing(!isEditing);
-    setSaveStatus('');
-  };
-
-  const handleSaveProfile = () => {
-    try {
-      // حفظ البيانات الجديدة
-      const updatedProfile = {
-        ...editForm,
-        lastUpdated: Date.now()
-      };
-      
-      setProfile(updatedProfile);
-      localStorage.setItem(`carvfi_profile_${user.address}`, JSON.stringify(updatedProfile));
-      setIsEditing(false);
-      setSaveStatus('success');
-      
-      // إخفاء رسالة النجاح بعد 3 ثواني
-      setTimeout(() => setSaveStatus(''), 3000);
-      
-      // إضافة نقاط لتحديث البروفيل
-      addPoints(5, 'profile_update');
-      
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      setSaveStatus('error');
-    }
-  };
-
-  const addPoints = (points, reason) => {
-    const currentPoints = profile.totalPoints || 0;
-    const updatedProfile = {
-      ...profile,
-      totalPoints: currentPoints + points
+        bio: 'مطور ويب شغوف بتقنية Web3 ومشاريع البلوكشين',
+        website: 'https://ahmedhawas.com',
+        twitter: 'ahmedhawas',
+        github: 'ahmedhawas7',
+        walletAddress: '0x742d35Cc6634C0532925a3b8D...'
+      });
     };
     
-    setProfile(updatedProfile);
-    localStorage.setItem(`carvfi_profile_${user.address}`, JSON.stringify(updatedProfile));
-    
-    // تسجيل النشاط
-    const activity = {
-      type: reason,
-      points: points,
-      timestamp: Date.now(),
-      description: getActivityDescription(reason)
-    };
-    
-    saveActivity(activity);
-  };
-
-  const getActivityDescription = (reason) => {
-    const descriptions = {
-      'profile_update': 'Profile updated',
-      'ai_chat': 'AI chat interaction',
-      'social_action': 'Social activity'
-    };
-    return descriptions[reason] || 'Activity';
-  };
-
-  const saveActivity = (activity) => {
-    const activities = JSON.parse(localStorage.getItem(`carvfi_activities_${user.address}`) || '[]');
-    activities.unshift(activity);
-    
-    // حفظ فقط آخر 10 أنشطة
-    if (activities.length > 10) {
-      activities.pop();
-    }
-    
-    localStorage.setItem(`carvfi_activities_${user.address}`, JSON.stringify(activities));
-  };
+    fetchProfile();
+  }, []);
 
   const handleInputChange = (field, value) => {
-    setEditForm(prev => ({
+    setProfile(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const handleSocialLinkChange = (index, value) => {
-    const newSocialLinks = [...editForm.socialLinks];
-    newSocialLinks[index] = value;
-    setEditForm(prev => ({
-      ...prev,
-      socialLinks: newSocialLinks
-    }));
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      // محاكاة حفظ البيانات في الخلفية
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // هنا سيتم إرسال البيانات إلى API
+      console.log('بيانات الملف الشخصي المحفوظة:', profile);
+      
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error) {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const addSocialLink = () => {
-    setEditForm(prev => ({
-      ...prev,
-      socialLinks: [...prev.socialLinks, '']
-    }));
+  const handleImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        handleInputChange('avatar', e.target?.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
-
-  const removeSocialLink = (index) => {
-    const newSocialLinks = editForm.socialLinks.filter((_, i) => i !== index);
-    setEditForm(prev => ({
-      ...prev,
-      socialLinks: newSocialLinks
-    }));
-  };
-
-  const getActivities = () => {
-    const activities = JSON.parse(localStorage.getItem(`carvfi_activities_${user.address}`) || '[]');
-    return activities.slice(0, 5); // آخر 5 أنشطة فقط
-  };
-
-  if (!profile || !walletData) {
-    return (
-      <div className="card">
-        <div className="loading">Loading profile...</div>
-      </div>
-    );
-  }
-
-  const activities = getActivities();
 
   return (
-    <div className="grid">
-      {/* Profile Card */}
-      <div className="card">
-        <div className="profile-header">
-          <div className="avatar">
-            {profile.avatar ? (
-              <img src={profile.avatar} alt="Profile" />
-            ) : (
-              '👤'
-            )}
-          </div>
-          <h2>{profile.username}</h2>
-          <p>{profile.bio}</p>
-          <div className="verification-badge">
-            {profile.isVerified ? 'Verified ✅' : 'Not Verified ⏳'}
-          </div>
-        </div>
-
-        <div className="stats">
-          <div className="stat">
-            <div className="stat-value">{profile.reputation}</div>
-            <div className="stat-label">Reputation</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{profile.totalPoints}</div>
-            <div className="stat-label">Points</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">
-              {Math.floor((Date.now() - profile.joinDate) / (24 * 60 * 60 * 1000))}
-            </div>
-            <div className="stat-label">Days</div>
-          </div>
-        </div>
-
-        <div className="profile-actions">
-          <button 
-            className={`btn ${isEditing ? 'btn-cancel' : 'btn-edit'}`}
-            onClick={handleEditToggle}
-          >
-            {isEditing ? 'Cancel' : 'Edit Profile'}
-          </button>
-          
-          {isEditing && (
-            <button 
-              className="btn btn-save"
-              onClick={handleSaveProfile}
-            >
-              💾 Save Changes
-            </button>
-          )}
-        </div>
-
-        {saveStatus === 'success' && (
-          <div className="save-status success">
-            ✅ Profile saved successfully! +5 points
-          </div>
-        )}
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="modern-card p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">الملف الشخصي</h2>
+        <p className="text-gray-600 mb-6">إدارة معلومات حسابك وتخصيص ظهورك في المنصة</p>
         
-        {saveStatus === 'error' && (
-          <div className="save-status error">
-            ❌ Error saving profile
-          </div>
-        )}
-      </div>
-
-      {/* Edit Profile Form */}
-      {isEditing && (
-        <div className="card">
-          <h3>✏️ Edit Profile</h3>
-          <div className="edit-form">
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={editForm.username || ''}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter your username"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Avatar URL</label>
-              <input
-                type="text"
-                value={editForm.avatar || ''}
-                onChange={(e) => handleInputChange('avatar', e.target.value)}
-                placeholder="https://example.com/avatar.jpg"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Bio</label>
-              <textarea
-                value={editForm.bio || ''}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                placeholder="Tell us about yourself..."
-                rows="3"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Social Links</label>
-              {editForm.socialLinks?.map((link, index) => (
-                <div key={index} className="social-link-input">
-                  <input
-                    type="text"
-                    value={link}
-                    onChange={(e) => handleSocialLinkChange(index, e.target.value)}
-                    placeholder="https://twitter.com/username"
+        <form onSubmit={handleSaveProfile}>
+          {/* صورة الملف الشخصي */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="relative group">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-r from-purple-400 to-blue-500 flex items-center justify-center text-white text-2xl font-bold overflow-hidden border-4 border-white shadow-lg">
+                {profile.avatar ? (
+                  <img 
+                    src={profile.avatar} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
                   />
-                  {editForm.socialLinks.length > 1 && (
-                    <button 
-                      type="button"
-                      className="btn-remove"
-                      onClick={() => removeSocialLink(index)}
-                    >
-                      ❌
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button 
-                type="button" 
-                className="btn btn-add"
-                onClick={addSocialLink}
+                ) : (
+                  <User size={48} />
+                )}
+              </div>
+              
+              <label 
+                htmlFor="avatar-upload"
+                className="absolute bottom-2 right-2 bg-blue-500 text-white p-2 rounded-full cursor-pointer transform transition-all hover:scale-105 hover:bg-blue-600 shadow-lg"
               >
-                + Add Social Link
-              </button>
+                <Camera size={16} />
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            <p className="text-sm text-gray-500 mt-2">انقر على الأيقونة لتغيير الصورة</p>
+          </div>
+
+          {/* معلومات الأساسية */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                اسم المستخدم *
+              </label>
+              <div className="relative">
+                <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={profile.username}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="ادخل اسم المستخدم"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                البريد الإلكتروني *
+              </label>
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="email"
+                  value={profile.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="ادخل بريدك الإلكتروني"
+                  required
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Wallet Info Card */}
-      <div className="card">
-        <h3>💰 Wallet Information</h3>
-        <div className="wallet-details">
-          <div className="wallet-item">
-            <span className="label">Network:</span>
-            <span className="value">{walletData.network}</span>
+          {/* عنوان المحفظة */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              عنوان المحفظة (Web3)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={profile.walletAddress}
+                readOnly
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">متصل</span>
+              </div>
+            </div>
           </div>
-          <div className="wallet-item">
-            <span className="label">Balance:</span>
-            <span className="value">{walletData.balance}</span>
-          </div>
-          <div className="wallet-item">
-            <span className="label">Transactions:</span>
-            <span className="value">{walletData.transactions}</span>
-          </div>
-          <div className="wallet-item">
-            <span className="label">Address:</span>
-            <span className="value address">{user.address}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Recent Activity Card */}
-      <div className="card">
-        <h3>📊 Recent Activity</h3>
-        <div className="activity-list">
-          {activities.length > 0 ? (
-            activities.map((activity, index) => (
-              <div key={index} className="activity-item">
-                <div className="activity-icon">
-                  {activity.type === 'profile_update' && '✏️'}
-                  {activity.type === 'ai_chat' && '🤖'}
-                  {activity.type === 'social_action' && '💬'}
+          {/* السيرة الذاتية */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              السيرة الذاتية
+            </label>
+            <textarea
+              value={profile.bio}
+              onChange={(e) => handleInputChange('bio', e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="اخبرنا عن نفسك وخبراتك..."
+            />
+          </div>
+
+          {/* حسابات التواصل الاجتماعي */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">حسابات التواصل الاجتماعي</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  الموقع الإلكتروني
+                </label>
+                <div className="relative">
+                  <Globe className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="url"
+                    value={profile.website}
+                    onChange={(e) => handleInputChange('website', e.target.value)}
+                    className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="https://example.com"
+                  />
                 </div>
-                <div className="activity-info">
-                  <div className="activity-title">{activity.description}</div>
-                  <div className="activity-time">
-                    {new Date(activity.timestamp).toLocaleDateString()} • {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Twitter
+                  </label>
+                  <div className="relative">
+                    <Twitter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      value={profile.twitter}
+                      onChange={(e) => handleInputChange('twitter', e.target.value)}
+                      className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="اسم المستخدم"
+                    />
                   </div>
                 </div>
-                <div className="activity-points">+{activity.points}</div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    GitHub
+                  </label>
+                  <div className="relative">
+                    <Github className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      value={profile.github}
+                      onChange={(e) => handleInputChange('github', e.target.value)}
+                      className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="اسم المستخدم"
+                    />
+                  </div>
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="no-activities">
-              No activities yet. Start by editing your profile or chatting with AI!
+            </div>
+          </div>
+
+          {/* أزرار الحفظ */}
+          <div className="flex justify-end space-x-3 space-x-reverse">
+            <button
+              type="button"
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg text-white font-medium transition-all ${
+                isLoading 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-500 hover:bg-blue-600 transform hover:scale-105'
+              }`}
+            >
+              <Save size={20} />
+              <span>{isLoading ? 'جاري الحفظ...' : 'حفظ التغييرات'}</span>
+            </button>
+          </div>
+
+          {/* رسالة الحالة */}
+          {saveStatus === 'success' && (
+            <div className="mt-4 p-3 bg-green-100 text-green-700 rounded-lg text-center border border-green-200">
+              <span className="font-medium">✓ تم حفظ التغييرات بنجاح</span>
             </div>
           )}
-        </div>
+          
+          {saveStatus === 'error' && (
+            <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center border border-red-200">
+              <span className="font-medium">✗ حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى</span>
+            </div>
+          )}
+        </form>
       </div>
     </div>
   );
