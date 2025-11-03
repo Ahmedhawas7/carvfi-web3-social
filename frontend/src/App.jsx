@@ -1,75 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import AIChat from './components/AIChat';
 import RewardsDashboard from './components/RewardsDashboard';
 import BotProtection from './components/BotProtection';
-import { CarvService } from './services/carv';
-import { SolanaService } from './services/solana';
 import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(true); // دائماً نبدأ بفتح ال modal
   const [activeTab, setActiveTab] = useState('profile');
   const [showAIChat, setShowAIChat] = useState(false);
-  const [carvService, setCarvService] = useState(null);
-  const [solanaService, setSolanaService] = useState(null);
 
   useEffect(() => {
-    initializeServices();
-    checkExistingSession();
-  }, []);
-
-  const initializeServices = () => {
-    setCarvService(new CarvService());
-    setSolanaService(new SolanaService());
-  };
-
-  const checkExistingSession = () => {
+    // تحقق من وجود user محفوظ
     const savedUser = localStorage.getItem('carvfi_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    } else {
-      // إذا مافيش user محفوظ، نفتح الـ AuthModal تلقائياً
-      setShowAuthModal(true);
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        setShowAuthModal(false); // إغلق ال modal إذا وجد user
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('carvfi_user');
+      }
     }
-  };
+  }, []);
 
   const handleAuthSuccess = (userData) => {
+    console.log('Auth success:', userData);
     setUser(userData);
     localStorage.setItem('carvfi_user', JSON.stringify(userData));
-    setShowAuthModal(false); // نغلق الـ modal بعد التسجيل الناجح
+    setShowAuthModal(false);
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('carvfi_user');
-    setShowAuthModal(true); // نفتح الـ modal مرة تانيه بعد التسجيل خروج
+    setShowAuthModal(true);
   };
 
-  // إذا كان الـ modal مفتوح، نعرض فقط الـ modal
+  // إذا كان ال modal مفتوح، اعرض فقط ال modal وشاشة التحميل
   if (showAuthModal) {
     return (
       <div className="app">
         <AuthModal 
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
+          isOpen={true}
+          onClose={() => {}} // لا تسمح بالإغلاق إلا بالتسجيل
           onAuthSuccess={handleAuthSuccess}
         />
-        <div className="loading-screen">
-          <div className="loading-content">
+        <div className="auth-background">
+          <div className="welcome-content">
             <h1>🌐 CARVFi</h1>
             <p>Web3 Social Platform</p>
-            <p className="loading-subtitle">Connect your wallet to get started</p>
+            <div className="welcome-features">
+              <div className="feature">🤖 AI Assistant</div>
+              <div className="feature">💰 Rewards System</div>
+              <div className="feature">🛡️ Bot Protection</div>
+              <div className="feature">🔗 Multi-Chain Support</div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // إذا كان فيه user مسجل، نعرض الواجهة الرئيسية
+  // إذا كان فيه user، اعرض الواجهة الرئيسية
   return (
     <div className="app">
       {/* Header */}
@@ -82,13 +78,13 @@ function App() {
         <div className="header-right">
           <div className="user-info">
             <span className="user-wallet">
-              {user.type === 'evm' 
-                ? `EVM: ${user.address.substring(0, 6)}...${user.address.substring(38)}`
-                : `SOL: ${user.address.substring(0, 6)}...`
+              {user?.type === 'evm' 
+                ? `EVM: ${user?.address?.substring(0, 6)}...${user?.address?.substring(38)}`
+                : `SOL: ${user?.address?.substring(0, 6)}...`
               }
             </span>
             <span className="network-badge">
-              {user.type === 'evm' ? 'Ethereum' : 'Solana'}
+              {user?.type === 'evm' ? 'Ethereum' : 'Solana'}
             </span>
           </div>
           <button className="btn btn-logout" onClick={handleLogout}>
@@ -118,32 +114,15 @@ function App() {
 
       {/* Main Content */}
       <main className="main-content">
-        {activeTab === 'profile' && (
-          <UserProfile 
-            user={user}
-            carvService={carvService}
-            solanaService={solanaService}
-          />
-        )}
-        
-        {activeTab === 'rewards' && (
-          <RewardsDashboard 
-            user={user}
-          />
-        )}
-        
-        {activeTab === 'protection' && (
-          <BotProtection 
-            user={user}
-          />
-        )}
+        {activeTab === 'profile' && <UserProfile user={user} />}
+        {activeTab === 'rewards' && <RewardsDashboard user={user} />}
+        {activeTab === 'protection' && <BotProtection user={user} />}
       </main>
 
       {/* AI Chat */}
       {showAIChat && (
         <AIChat 
           user={user}
-          carvService={carvService}
           onClose={() => setShowAIChat(false)}
         />
       )}
