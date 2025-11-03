@@ -976,3 +976,28 @@ input::placeholder {
   opacity: 1;
   visibility: visible;
   }
+
+/* Error Message Styles */
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  margin: 1rem 1.5rem 0;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* Wallet Status */
+.wallet-status {
+  font-size: 0.7rem;
+  margin-top: 0.3rem;
+  font-weight: 500;
+}
+
+.wallet-status:not(:empty) {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  display: inline-block;
+}
