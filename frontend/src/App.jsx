@@ -6,23 +6,42 @@ import RewardsDashboard from './components/RewardsDashboard';
 import BotProtection from './components/BotProtection';
 import './App.css';
 
-// خدمة تخزين محلية بسيطة
+// خدمة تخزين محلية محسنة
 const StorageService = {
-  // حفظ بيانات المستخدم
+  // حفظ بيانات المستخدم مع جميع الإحصائيات
   saveUser: (userData) => {
     const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
-    users[userData.walletAddress] = {
-      ...userData,
-      lastUpdated: new Date().toISOString()
-    };
+    const userKey = userData.walletAddress?.toLowerCase();
+    
+    if (users[userKey]) {
+      // تحديث المستخدم الموجود
+      users[userKey] = {
+        ...users[userKey],
+        ...userData,
+        lastUpdated: new Date().toISOString()
+      };
+    } else {
+      // إنشاء مستخدم جديد
+      users[userKey] = {
+        ...userData,
+        points: 0,
+        streak: 1,
+        level: 1,
+        loginCount: 1,
+        lastLogin: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
     localStorage.setItem('carvfi_users', JSON.stringify(users));
-    localStorage.setItem('carvfi_current_user', JSON.stringify(userData));
+    localStorage.setItem('carvfi_current_user', JSON.stringify(users[userKey]));
   },
 
   // جلب بيانات المستخدم
   getUser: (walletAddress) => {
     const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
-    return users[walletAddress];
+    return users[walletAddress?.toLowerCase()];
   },
 
   // جلب المستخدم الحالي
@@ -33,41 +52,84 @@ const StorageService = {
   // حفظ النشاطات
   saveActivity: (walletAddress, activity) => {
     const activities = JSON.parse(localStorage.getItem('carvfi_activities') || '{}');
-    if (!activities[walletAddress]) {
-      activities[walletAddress] = [];
+    const userKey = walletAddress?.toLowerCase();
+    
+    if (!activities[userKey]) {
+      activities[userKey] = [];
     }
-    activities[walletAddress].unshift({
+    
+    activities[userKey].unshift({
       id: Date.now().toString(),
       ...activity,
       timestamp: new Date().toISOString()
     });
     
     // حفظ آخر 50 نشاط فقط
-    activities[walletAddress] = activities[walletAddress].slice(0, 50);
+    activities[userKey] = activities[userKey].slice(0, 50);
     localStorage.setItem('carvfi_activities', JSON.stringify(activities));
   },
 
   // جلب النشاطات
   getActivities: (walletAddress) => {
     const activities = JSON.parse(localStorage.getItem('carvfi_activities') || '{}');
-    return activities[walletAddress] || [];
+    return activities[walletAddress?.toLowerCase()] || [];
   },
 
   // تحديث النقاط
   updatePoints: (walletAddress, pointsToAdd) => {
     const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
-    if (users[walletAddress]) {
-      users[walletAddress].points = (users[walletAddress].points || 0) + pointsToAdd;
-      users[walletAddress].lastUpdated = new Date().toISOString();
+    const userKey = walletAddress?.toLowerCase();
+    
+    if (users[userKey]) {
+      users[userKey].points = (users[userKey].points || 0) + pointsToAdd;
+      users[userKey].lastUpdated = new Date().toISOString();
       localStorage.setItem('carvfi_users', JSON.stringify(users));
       
       // تحديث المستخدم الحالي أيضاً
-      const currentUser = JSON.parse(localStorage.getItem('carvfi_current_user') || '{}');
-      if (currentUser.walletAddress === walletAddress) {
-        currentUser.points = users[walletAddress].points;
+      const currentUser = StorageService.getCurrentUser();
+      if (currentUser && currentUser.walletAddress?.toLowerCase() === userKey) {
+        currentUser.points = users[userKey].points;
         localStorage.setItem('carvfi_current_user', JSON.stringify(currentUser));
       }
+      
+      return users[userKey].points;
     }
+    return 0;
+  },
+
+  // تحديث streak
+  updateStreak: (walletAddress) => {
+    const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
+    const userKey = walletAddress?.toLowerCase();
+    
+    if (users[userKey]) {
+      const today = new Date().toDateString();
+      const lastLogin = users[userKey].lastLogin ? new Date(users[userKey].lastLogin).toDateString() : null;
+      
+      if (lastLogin !== today) {
+        users[userKey].streak = (users[userKey].streak || 0) + 1;
+        users[userKey].lastLogin = new Date().toISOString();
+        users[userKey].loginCount = (users[userKey].loginCount || 0) + 1;
+        localStorage.setItem('carvfi_users', JSON.stringify(users));
+        
+        // تحديث المستخدم الحالي
+        const currentUser = StorageService.getCurrentUser();
+        if (currentUser && currentUser.walletAddress?.toLowerCase() === userKey) {
+          currentUser.streak = users[userKey].streak;
+          currentUser.lastLogin = users[userKey].lastLogin;
+          currentUser.loginCount = users[userKey].loginCount;
+          localStorage.setItem('carvfi_current_user', JSON.stringify(currentUser));
+        }
+        
+        return users[userKey].streak;
+      }
+    }
+    return 0;
+  },
+
+  // الحصول على جميع المستخدمين (للتطوير)
+  getAllUsers: () => {
+    return JSON.parse(localStorage.getItem('carvfi_users') || '{}');
   }
 };
 
@@ -80,8 +142,24 @@ function App() {
   useEffect(() => {
     const savedUser = StorageService.getCurrentUser();
     if (savedUser) {
-      setUser(savedUser);
+      // تحديث streak عند الدخول
+      const newStreak = StorageService.updateStreak(savedUser.walletAddress);
+      
+      setUser({
+        ...savedUser,
+        streak: newStreak || savedUser.streak
+      });
       setShowAuthModal(false);
+      
+      // تسجيل نشاط الدخول
+      if (newStreak > 0) {
+        StorageService.saveActivity(savedUser.walletAddress, {
+          type: 'login',
+          description: `Daily login - Streak: ${newStreak} days`,
+          points: 10
+        });
+        StorageService.updatePoints(savedUser.walletAddress, 10);
+      }
     }
   }, []);
 
@@ -89,29 +167,31 @@ function App() {
     console.log('Authentication successful:', userData);
     
     const userWithStats = {
-      ...userData,
-      points: 0,
-      streak: 1,
-      level: 1,
-      loginCount: 1,
-      lastLogin: new Date().toISOString(),
-      createdAt: new Date().toISOString()
+      walletAddress: userData.address,
+      type: userData.type,
+      username: `user_${userData.address.slice(2, 8)}`
     };
     
     // حفظ في التخزين المحلي
     StorageService.saveUser(userWithStats);
     
+    // تحديث streak
+    const newStreak = StorageService.updateStreak(userData.address);
+    
     // تسجيل نشاط الدخول
     StorageService.saveActivity(userData.address, {
       type: 'login',
-      description: 'User logged in successfully',
+      description: `User logged in successfully - Streak: ${newStreak} days`,
       points: 10
     });
     
     // تحديث النقاط
-    StorageService.updatePoints(userData.address, 10);
+    const newPoints = StorageService.updatePoints(userData.address, 10);
     
-    setUser(userWithStats);
+    // تحميل بيانات المستخدم المحدثة
+    const updatedUser = StorageService.getUser(userData.address);
+    
+    setUser(updatedUser);
     setShowAuthModal(false);
   };
 
@@ -156,13 +236,13 @@ function App() {
         <div className="header-right">
           <div className="user-info">
             <span className="user-wallet">
-              {user?.address ? `${user.address.substring(0, 6)}...${user.address.substring(38)}` : 'No wallet'}
+              {user?.walletAddress ? `${user.walletAddress.substring(0, 6)}...${user.walletAddress.substring(38)}` : 'No wallet'}
             </span>
             <span className="network-badge">
               {user?.type === 'evm' ? 'Ethereum' : 'Solana'}
             </span>
             <span style={{fontSize: '0.7rem', color: '#10b981', marginTop: '2px'}}>
-              {user?.points || 0} points
+              {user?.points || 0} points | Streak: {user?.streak || 0} days
             </span>
           </div>
           <button className="btn btn-logout" onClick={handleLogout}>
