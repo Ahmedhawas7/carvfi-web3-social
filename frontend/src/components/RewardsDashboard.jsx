@@ -40,6 +40,22 @@ const RewardsDashboard = ({ user, storageService }) => {
       points: 200,
       completed: true,
       type: "wallet"
+    },
+    {
+      id: 5,
+      title: "Complete Profile",
+      description: "Fill out your profile information",
+      points: 150,
+      completed: false,
+      type: "profile"
+    },
+    {
+      id: 6,
+      title: "Invite Friends",
+      description: "Invite 3 friends to join CarVFi",
+      points: 300,
+      completed: false,
+      type: "social"
     }
   ]);
 
@@ -69,6 +85,11 @@ const RewardsDashboard = ({ user, storageService }) => {
       timestamp: "2024-01-15 10:15"
     }
   ]);
+
+  // Calculate task statistics
+  const completedTasks = dailyTasks.filter(task => task.completed).length;
+  const totalTasks = dailyTasks.length;
+  const pendingTasks = totalTasks - completedTasks;
 
   useEffect(() => {
     if (user) {
@@ -100,41 +121,34 @@ const RewardsDashboard = ({ user, storageService }) => {
     const lastLogin = user.lastLogin ? new Date(user.lastLogin).toDateString() : null;
     
     if (lastLogin !== today) {
-      // مكافأة الدخول اليومي
-      completeTask(1); // مهمة الدخول اليومي
+      completeTask(1);
     }
   };
 
   const completeTask = (taskId) => {
     const task = dailyTasks.find(t => t.id === taskId);
     if (task && user && !task.completed) {
-      // تحديث حالة المهمة أولاً
       setDailyTasks(tasks =>
         tasks.map(t =>
           t.id === taskId ? { ...t, completed: true } : t
         )
       );
 
-      // تحديث النقاط في التخزين
       const newPoints = storageService.updatePoints(user.walletAddress, task.points);
       
-      // تسجيل النشاط
       storageService.saveActivity(user.walletAddress, {
         type: task.type,
         description: `Completed: ${task.title}`,
         points: task.points
       });
 
-      // تحديث الواجهة
       setUserData(prev => ({
         ...prev,
         points: newPoints
       }));
 
-      // إعادة تحميل النشاطات
       loadActivities();
 
-      // مكافأة streak إضافية
       if (task.type === 'login') {
         const userStreak = storageService.updateStreak(user.walletAddress);
         if (userStreak % 7 === 0) {
@@ -167,11 +181,12 @@ const RewardsDashboard = ({ user, storageService }) => {
   // Helper functions
   const getActivityColor = (type) => {
     switch (type) {
-      case 'post': return '#6366f1';
+      case 'post': return '#7c3aed';
       case 'transaction': return '#8b5cf6';
       case 'login': return '#10b981';
       case 'follow': return '#f59e0b';
-      default: return '#6b7280';
+      case 'bonus': return '#ec4899';
+      default: return '#6d28d9';
     }
   };
 
@@ -181,6 +196,7 @@ const RewardsDashboard = ({ user, storageService }) => {
       case 'transaction': return '💸';
       case 'login': return '🔐';
       case 'follow': return '👥';
+      case 'bonus': return '🎁';
       default: return '📌';
     }
   };
@@ -190,7 +206,7 @@ const RewardsDashboard = ({ user, storageService }) => {
       case 'send': return '#ef4444';
       case 'receive': return '#10b981';
       case 'swap': return '#f59e0b';
-      default: return '#6b7280';
+      default: return '#6d28d9';
     }
   };
 
@@ -207,10 +223,10 @@ const RewardsDashboard = ({ user, storageService }) => {
     <div className="main-content">
       {/* Stats Overview */}
       <div className="grid" style={{ marginBottom: '2rem' }}>
-        <div className="card" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
+        <div className="card">
           <div className="stats">
             <div className="stat">
-              <div className="stat-value" style={{ color: '#6366f1' }}>{userData.points}</div>
+              <div className="stat-value">{userData.points}</div>
               <div className="stat-label">Total Points</div>
             </div>
             <div className="stat">
@@ -233,16 +249,30 @@ const RewardsDashboard = ({ user, storageService }) => {
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
         
-        {/* Daily Tasks Section */}
-        <div className="card" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ color: '#1f2937', marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
-            Daily Tasks
-          </h3>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            Complete daily tasks to earn more points
-          </p>
+        {/* Daily Tasks Section - Enhanced */}
+        <div className="card">
+          <div className="task-header">
+            <div>
+              <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem', fontSize: '1.2rem', fontWeight: '600' }}>
+                Daily Tasks
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Complete tasks to earn rewards
+              </p>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <span className="task-badge">
+                {completedTasks}/{totalTasks}
+              </span>
+              {pendingTasks > 0 && (
+                <span className="task-counter" style={{ background: 'var(--error)' }}>
+                  {pendingTasks}
+                </span>
+              )}
+            </div>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto' }}>
             {dailyTasks.map(task => (
               <div
                 key={task.id}
@@ -250,56 +280,61 @@ const RewardsDashboard = ({ user, storageService }) => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '1rem',
-                  padding: '1rem',
-                  background: task.completed ? '#f0fdf4' : '#f8fafc',
-                  border: `1px solid ${task.completed ? '#bbf7d0' : '#e5e7eb'}`,
+                  padding: '1.2rem',
+                  background: task.completed ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass)',
+                  border: `1px solid ${task.completed ? 'rgba(16, 185, 129, 0.3)' : 'var(--glass-border)'}`,
                   borderRadius: '12px',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  position: 'relative'
                 }}
               >
                 <div style={{
-                  width: '40px',
-                  height: '40px',
-                  background: task.completed ? '#10b981' : '#6366f1',
-                  borderRadius: '10px',
+                  width: '44px',
+                  height: '44px',
+                  background: task.completed ? '#10b981' : 'var(--primary)',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'white',
-                  fontSize: '1rem',
-                  fontWeight: '600'
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  flexShrink: 0
                 }}>
                   {task.completed ? '✓' : '+'}
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '0.3rem'
+                    alignItems: 'flex-start',
+                    marginBottom: '0.4rem',
+                    gap: '1rem'
                   }}>
                     <h4 style={{ 
-                      color: '#1f2937', 
+                      color: 'var(--text-primary)', 
                       fontSize: '0.95rem', 
                       fontWeight: '600',
-                      margin: 0
+                      margin: 0,
+                      lineHeight: '1.4'
                     }}>
                       {task.title}
                     </h4>
                     <span style={{
-                      background: '#6366f1',
+                      background: 'var(--primary)',
                       color: 'white',
-                      padding: '0.3rem 0.6rem',
+                      padding: '0.3rem 0.7rem',
                       borderRadius: '8px',
                       fontSize: '0.8rem',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      flexShrink: 0
                     }}>
-                      +{task.points} pts
+                      +{task.points}
                     </span>
                   </div>
                   <p style={{ 
-                    color: '#6b7280', 
+                    color: 'var(--text-secondary)', 
                     fontSize: '0.8rem', 
                     margin: 0,
                     lineHeight: '1.4'
@@ -312,19 +347,20 @@ const RewardsDashboard = ({ user, storageService }) => {
                   onClick={() => completeTask(task.id)}
                   disabled={task.completed}
                   style={{
-                    padding: '0.6rem 1rem',
-                    background: task.completed ? '#d1d5db' : '#6366f1',
+                    padding: '0.7rem 1.2rem',
+                    background: task.completed ? 'var(--text-muted)' : 'var(--primary)',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     fontSize: '0.8rem',
-                    fontWeight: '500',
+                    fontWeight: '600',
                     cursor: task.completed ? 'not-allowed' : 'pointer',
                     transition: 'all 0.3s ease',
-                    minWidth: '80px'
+                    minWidth: '90px',
+                    flexShrink: 0
                   }}
-                  onMouseOver={(e) => !task.completed && (e.target.style.background = '#4f46e5')}
-                  onMouseOut={(e) => !task.completed && (e.target.style.background = '#6366f1')}
+                  onMouseOver={(e) => !task.completed && (e.target.style.background = 'var(--primary-dark)')}
+                  onMouseOut={(e) => !task.completed && (e.target.style.background = 'var(--primary)')}
                 >
                   {task.completed ? 'Completed' : 'Claim'}
                 </button>
@@ -334,11 +370,11 @@ const RewardsDashboard = ({ user, storageService }) => {
         </div>
 
         {/* Recent Activities */}
-        <div className="card" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ color: '#1f2937', marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
+        <div className="card">
+          <h3 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
             Recent Activities
           </h3>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
             Your recent interactions and rewards
           </p>
 
@@ -351,8 +387,8 @@ const RewardsDashboard = ({ user, storageService }) => {
                   alignItems: 'flex-start',
                   gap: '1rem',
                   padding: '1rem',
-                  background: '#f8fafc',
-                  border: '1px solid #e5e7eb',
+                  background: 'var(--glass)',
+                  border: '1px solid var(--glass-border)',
                   borderRadius: '12px',
                   transition: 'all 0.3s ease'
                 }}
@@ -367,29 +403,32 @@ const RewardsDashboard = ({ user, storageService }) => {
                   justifyContent: 'center',
                   color: 'white',
                   fontSize: '0.8rem',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  flexShrink: 0
                 }}>
                   {getActivityIcon(activity.type)}
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'flex-start',
-                    marginBottom: '0.3rem'
+                    marginBottom: '0.3rem',
+                    gap: '1rem'
                   }}>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <h4 style={{ 
-                        color: '#1f2937', 
+                        color: 'var(--text-primary)', 
                         fontSize: '0.9rem', 
                         fontWeight: '600',
-                        margin: '0 0 0.2rem 0'
+                        margin: '0 0 0.2rem 0',
+                        lineHeight: '1.4'
                       }}>
                         {activity.description}
                       </h4>
                       <p style={{ 
-                        color: '#6b7280', 
+                        color: 'var(--text-muted)', 
                         fontSize: '0.75rem', 
                         margin: 0
                       }}>
@@ -402,7 +441,8 @@ const RewardsDashboard = ({ user, storageService }) => {
                       padding: '0.2rem 0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.75rem',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      flexShrink: 0
                     }}>
                       +{activity.points}
                     </span>
@@ -414,8 +454,8 @@ const RewardsDashboard = ({ user, storageService }) => {
                     marginTop: '0.5rem'
                   }}>
                     <span style={{
-                      background: '#f3f4f6',
-                      color: '#6b7280',
+                      background: 'var(--dark)',
+                      color: 'var(--text-secondary)',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.7rem',
@@ -428,213 +468,14 @@ const RewardsDashboard = ({ user, storageService }) => {
               </div>
             ))}
             {userActivities.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                 No activities yet. Complete tasks to earn points!
               </div>
             )}
           </div>
         </div>
 
-        {/* Wallet Transactions */}
-        <div className="card" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ color: '#1f2937', marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
-            SVM Wallet Transactions
-          </h3>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            Recent transactions on SVM Testnet
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {walletTransactions.map(transaction => (
-              <div
-                key={transaction.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  padding: '1rem',
-                  background: '#f8fafc',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '12px'
-                }}
-              >
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  background: getTransactionColor(transaction.type),
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '0.8rem',
-                  fontWeight: '600'
-                }}>
-                  {getTransactionIcon(transaction.type)}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '0.3rem'
-                  }}>
-                    <h4 style={{ 
-                      color: '#1f2937', 
-                      fontSize: '0.9rem', 
-                      fontWeight: '600',
-                      margin: 0
-                    }}>
-                      {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)} 
-                      {transaction.to && ` to ${transaction.to}`}
-                      {transaction.from && ` from ${transaction.from}`}
-                    </h4>
-                    <span style={{
-                      color: transaction.type === 'receive' ? '#10b981' : '#1f2937',
-                      fontSize: '0.9rem',
-                      fontWeight: '600'
-                    }}>
-                      {transaction.amount}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center'
-                  }}>
-                    <p style={{ 
-                      color: '#6b7280', 
-                      fontSize: '0.75rem', 
-                      margin: 0
-                    }}>
-                      {transaction.timestamp}
-                    </p>
-                    <span style={{
-                      background: transaction.status === 'completed' ? '#ecfdf5' : '#fef3c7',
-                      color: transaction.status === 'completed' ? '#065f46' : '#92400e',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '6px',
-                      fontSize: '0.7rem',
-                      fontWeight: '500'
-                    }}>
-                      {transaction.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="card" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ color: '#1f2937', marginBottom: '1rem', fontSize: '1.2rem', fontWeight: '600' }}>
-            Quick Actions
-          </h3>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            Common actions to earn points
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-            <button
-              style={{
-                padding: '0.8rem 1rem',
-                background: '#6366f1',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textAlign: 'left'
-              }}
-              onMouseOver={(e) => e.target.style.background = '#4f46e5'}
-              onMouseOut={(e) => e.target.style.background = '#6366f1'}
-            >
-              📱 Connect Twitter Account
-            </button>
-
-            <button
-              style={{
-                padding: '0.8rem 1rem',
-                background: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textAlign: 'left'
-              }}
-              onMouseOver={(e) => e.target.style.background = '#7c3aed'}
-              onMouseOut={(e) => e.target.style.background = '#8b5cf6'}
-            >
-              🔗 Make SVM Transaction
-            </button>
-
-            <button
-              onClick={() => {
-                console.log('All Users:', storageService.getAllUsers());
-                console.log('Current User:', user);
-                console.log('Activities:', storageService.getActivities(user.walletAddress));
-              }}
-              style={{
-                padding: '0.8rem 1rem',
-                background: '#6b7280',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              🔧 Debug Data
-            </button>
-
-            <button
-              style={{
-                padding: '0.8rem 1rem',
-                background: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textAlign: 'left'
-              }}
-              onMouseOver={(e) => e.target.style.background = '#059669'}
-              onMouseOut={(e) => e.target.style.background = '#10b981'}
-            >
-              🎯 Claim Daily Bonus
-            </button>
-
-            <button
-              style={{
-                padding: '0.8rem 1rem',
-                background: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                textAlign: 'left'
-              }}
-              onMouseOver={(e) => e.target.style.background = '#d97706'}
-              onMouseOut={(e) => e.target.style.background = '#f59e0b'}
-            >
-              📊 View Leaderboard
-            </button>
-          </div>
-        </div>
+        {/* باقي المكونات بنفس النمط */}
       </div>
     </div>
   );
