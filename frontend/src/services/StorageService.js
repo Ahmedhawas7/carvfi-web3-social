@@ -94,8 +94,25 @@ class StorageService {
         twitter: userData.twitter,
         telegram: userData.telegram,
         avatar: userData.avatar,
-        points: 0, // نقاط بداية
+        points: 50, // نقاط بداية
+        streak: 1,
+        level: 1,
+        achievements: [
+          {
+            id: 1,
+            name: "CARV Pioneer",
+            description: "Joined CARV SVM Testnet",
+            icon: "🚀",
+            points: 50,
+            earnedAt: new Date().toISOString(),
+            category: "onboarding"
+          }
+        ],
+        totalAchievements: 1,
+        loginCount: 1,
+        lastLogin: new Date().toISOString(),
         createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         type: userData.type || 'solana'
       };
 
@@ -144,6 +161,33 @@ class StorageService {
       points,
       totalActivities: activities.length
     };
+  }
+
+  // دالة جديدة لإضافة إنجاز
+  static addAchievement(walletAddress, achievement) {
+    const user = this.getUser(walletAddress);
+    if (!user) return false;
+
+    if (!user.achievements) {
+      user.achievements = [];
+    }
+
+    const newAchievement = {
+      id: Date.now(),
+      ...achievement,
+      earnedAt: new Date().toISOString()
+    };
+
+    user.achievements.push(newAchievement);
+    user.totalAchievements = user.achievements.length;
+    
+    // إضافة النقاط
+    if (achievement.points) {
+      user.points = (user.points || 0) + achievement.points;
+    }
+
+    this.saveUser(user);
+    return true;
   }
 }
 
