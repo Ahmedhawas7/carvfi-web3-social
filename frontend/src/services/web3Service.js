@@ -1,4 +1,5 @@
 // src/services/web3Service.js
+import WalletConnectService from './WalletConnectService';
 
 // Carv SVM Testnet configuration
 export const CARV_SVM_CONFIG = {
@@ -9,120 +10,168 @@ export const CARV_SVM_CONFIG = {
   explorer: 'https://explorer.carv.io/'
 };
 
-export class CarvSolanaService {
+export class CarvWeb3Service {
   constructor() {
-    this.connection = null;
-    this.wallet = null;
-    this.publicKey = null;
+    this.walletConnectService = new WalletConnectService();
+    this.currentProvider = null;
     this.isConnected = false;
+    this.publicKey = null;
+    this.balance = '0';
   }
 
-  // Check if any Solana wallet is available
-  isWalletAvailable() {
-    if (typeof window === 'undefined') return false;
+  // Check available connection methods
+  getAvailableWallets() {
+    const wallets = [];
     
     // Check for BackPack
-    if (window.backpack) return true;
+    if (typeof window !== 'undefined' && window.backpack) {
+      wallets.push({
+        name: 'BackPack',
+        type: 'injected',
+        icon: '🎒'
+      });
+    }
     
     // Check for other Solana wallets
-    if (window.solana) return true;
-    if (window.phantom) return true;
-    
-    return false;
-  }
-
-  // Get wallet provider
-  getWalletProvider() {
-    if (typeof window === 'undefined') return null;
-    
-    if (window.backpack) return window.backpack;
-    if (window.solana) return window.solana;
-    if (window.phantom) return window.phantom;
-    
-    return null;
-  }
-
-  // Connect to wallet
-  async connectWallet() {
-    const provider = this.getWalletProvider();
-    
-    if (!provider) {
-      throw new Error('No Solana wallet found. Please install BackPack, Phantom, or Solflare.');
+    if (typeof window !== 'undefined' && window.solana) {
+      wallets.push({
+        name: 'Solana',
+        type: 'injected',
+        icon: '🔷'
+      });
     }
+    
+    // Check for Phantom
+    if (typeof window !== 'undefined' && window.phantom) {
+      wallets.push({
+        name: 'Phantom',
+        type: 'injected',
+        icon: '👻'
+      });
+    }
+    
+    // Always available: WalletConnect
+    wallets.push({
+      name: 'WalletConnect',
+      type: 'walletconnect',
+      icon: '🔗',
+      description: 'Connect any wallet'
+    });
+    
+    return wallets;
+  }
 
+  // Connect using specific wallet
+  async connectWallet(walletType = 'walletconnect') {
     try {
-      // Request connection
-      await provider.connect();
-      
-      this.wallet = provider;
-      this.publicKey = provider.publicKey;
-      this.isConnected = true;
-
-      // Setup connection with Carv SVM RPC
-      const { Connection } = await import('@solana/web3.js');
-      this.connection = new Connection(CARV_SVM_CONFIG.url, 'confirmed');
-
-      console.log('Connected to wallet:', this.publicKey.toString());
-
-      return {
-        success: true,
-        publicKey: this.publicKey.toString(),
-        network: CARV_SVM_CONFIG.name,
-        walletName: this.getWalletName(provider)
-      };
+      if (walletType === 'walletconnect') {
+        const result = await this.walletConnectService.connectWallet();
+        this.currentProvider = 'walletconnect';
+        this.isConnected = true;
+        this.publicKey = result.publicKey;
+        return result;
+      } else {
+        // Direct connection for injected wallets
+        return await this.connectInjectedWallet(walletType);
+      }
     } catch (error) {
       console.error('Wallet connection failed:', error);
       throw error;
     }
   }
 
-  // Get wallet name
-  getWalletName(provider) {
-    if (provider === window.backpack) return 'BackPack';
-    if (provider === window.solana) return 'Solana';
-    if (provider === window.phantom) return 'Phantom';
-    return 'Unknown';
-  }
-
-  // Disconnect wallet
-  disconnectWallet() {
-    if (this.wallet && this.wallet.disconnect) {
-      this.wallet.disconnect();
-    }
+  // Connect to injected wallet (BackPack, Phantom, etc.)
+  async connectInjectedWallet(walletName) {
+    let provider;
     
-    this.wallet = null;
-    this.publicKey = null;
-    this.isConnected = false;
-    this.connection = null;
+    switch (walletName.toLowerCase()) {
+      case 'backpack':
+        provider = window.backpack;
+        break;
+      case 'solana':
+        provider = window.solana;
+        break;
+      case 'phantom':
+        provider = window.phantom;
+        break;
+      default:
+        throw new Error(`Unsupported wallet: ${walletName}`);
+    }
+
+    if (!provider) {
+      throw new Error(`${walletName} wallet not found`);
+    }
+
+    try {
+      await provider.connect();
+      this.currentProvider = walletName;
+      this.isConnected = true;
+      this.publicKey = provider.publicKey;
+
+      return {
+        success: true,
+        publicKey: this.publicKey.toString(),
+        network: CARV_SVM_CONFIG.name,
+        walletName: walletName
+      };
+    } catch (error) {
+      console.error(`Failed to connect to ${walletName}:`, error);
+      throw error;
+    }
   }
 
-  // Get balance in CARV
   async getBalance() {
-    if (!this.isConnected || !this.publicKey || !this.connection) {
+    if (!this.isConnected || !this.publicKey) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      const { LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-      const balance = await this.connection.getBalance(this.publicKey);
-      return balance / LAMPORTS_PER_SOL; // Convert lamports to CARV
+      if (this.currentProvider === 'walletconnect') {
+        this.balance = await this.walletConnectService.getBalance();
+      } else {
+        // For injected wallets, use direct connection
+        const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+        const connection = new Connection(CARV_SVM_CONFIG.url, 'confirmed');
+        const balance = await connection.getBalance(this.publicKey);
+        this.balance = balance / LAMPORTS_PER_SOL;
+      }
+      
+      return this.balance;
     } catch (error) {
       console.error('Failed to get balance:', error);
       throw error;
     }
   }
 
-  // Get connection status
+  async disconnectWallet() {
+    if (this.currentProvider === 'walletconnect') {
+      await this.walletConnectService.disconnectWallet();
+    } else if (this.currentProvider && window[this.currentProvider]) {
+      await window[this.currentProvider].disconnect();
+    }
+    
+    this.currentProvider = null;
+    this.isConnected = false;
+    this.publicKey = null;
+    this.balance = '0';
+  }
+
   getConnectionStatus() {
     return {
       isConnected: this.isConnected,
       publicKey: this.publicKey ? this.publicKey.toString() : null,
       network: CARV_SVM_CONFIG.name,
-      walletName: this.wallet ? this.getWalletName(this.wallet) : null
+      walletName: this.currentProvider,
+      balance: this.balance
     };
+  }
+
+  isAnyWalletAvailable() {
+    const wallets = this.getAvailableWallets();
+    return wallets.length > 0;
   }
 }
 
 // Create singleton instance
-const solanaService = new CarvSolanaService();
-export default solanaService;
+const web3Service = new CarvWeb3Service();
+export default web3Service;
