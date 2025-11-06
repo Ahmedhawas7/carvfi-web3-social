@@ -131,7 +131,8 @@ const AppContent = () => {
           streak: newStreak || savedUser.streak
         };
         setUser(updatedUser);
-        
+        setShowAuthModal(false);
+
         if (newStreak > 0) {
           StorageService.saveActivity(publicKey, {
             type: 'login',
