@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import web3Service from '../services/web3Service';
+import StorageService from '../services/StorageService';
 
 const WalletContext = createContext();
 
@@ -20,40 +22,48 @@ export const WalletProvider = ({ children }) => {
   const [walletName, setWalletName] = useState(null);
   const [availableWallets, setAvailableWallets] = useState([]);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
-    // Get available wallets on component mount
     const wallets = web3Service.getAvailableWallets();
     setAvailableWallets(wallets);
-    
-    // Check initial connection status
     checkInitialConnection();
   }, []);
 
   const checkInitialConnection = async () => {
-    const status = web3Service.getConnectionStatus();
-    if (status.isConnected) {
+    const current = StorageService.getCurrentUser();
+    if (current) {
       setIsConnected(true);
-      setPublicKey(status.publicKey);
-      setWalletName(status.walletName);
-      setBalance(status.balance);
+      setPublicKey(current.walletAddress);
+      setWalletName(current.walletName || 'Connected Wallet');
+      setBalance(StorageService.getPoints(current.walletAddress) || '0');
+      navigate('/dashboard');
     }
   };
 
-  const connectWallet = async (walletType = 'direct') => {
+  const connectWallet = async (walletType = 'backpack') => {
     setIsLoading(true);
     setError(null);
-    
     try {
       const result = await web3Service.connectWallet(walletType);
-      
       if (result.success) {
+        const walletAddress = result.publicKey;
+        const walletUser = {
+          walletAddress,
+          walletName: result.walletName,
+          network: result.network,
+          points: StorageService.getPoints(walletAddress),
+        };
+
+        StorageService.saveUser(walletUser);
+
         setIsConnected(true);
-        setPublicKey(result.publicKey);
+        setPublicKey(walletAddress);
         setWalletName(result.walletName);
-        
-        // Get initial balance
         const accountBalance = await web3Service.getBalance();
         setBalance(accountBalance);
+
+        navigate('/dashboard'); // 🔥 التحويل بعد الاتصال الناجح
       }
     } catch (error) {
       setError(error.message);
@@ -71,6 +81,8 @@ export const WalletProvider = ({ children }) => {
       setBalance('0');
       setError(null);
       setWalletName(null);
+      localStorage.removeItem('carvfi_current_user');
+      navigate('/');
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
     }
