@@ -100,6 +100,12 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     try {
       console.log('📝 Submitting profile data:', formData);
       
+      // التحقق مما إذا كان المستخدم مسجلاً مسبقاً
+      if (StorageService.userExists(walletAddress)) {
+        setFormErrors({ submit: 'Account already exists for this wallet address.' });
+        return;
+      }
+
       // حفظ البيانات باستخدام الـ Service الموجود
       const userData = {
         address: walletAddress,
@@ -114,11 +120,21 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
         throw new Error('Failed to save user data');
       }
 
-      console.log('✅ User data saved successfully');
+      console.log('✅ User data saved successfully:', saveResult.user);
+
+      // إضافة نشاط التسجيل
+      StorageService.saveActivity(walletAddress, {
+        type: 'account_created',
+        description: 'Account created successfully',
+        points: 0
+      });
+
+      // تحديث streak
+      StorageService.updateStreak(walletAddress);
 
       // استدعاء onAuthSuccess إذا كان موجوداً
       if (onAuthSuccess) {
-        onAuthSuccess(userData);
+        onAuthSuccess(saveResult.user);
         console.log('✅ onAuthSuccess called successfully');
       }
 
