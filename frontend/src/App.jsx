@@ -152,6 +152,9 @@ const AppContent = () => {
   }, [isConnected, publicKey]);
 
   const handleAuthSuccess = (userData) => {
+    console.log('🎉 handleAuthSuccess called with:', userData);
+    
+    // حفظ البيانات مباشرة في localStorage
     const userWithStats = {
       walletAddress: publicKey,
       type: 'solana',
@@ -174,19 +177,40 @@ const AppContent = () => {
       lastUpdated: new Date().toISOString()
     };
     
-    StorageService.saveUser(userWithStats);
-    StorageService.saveActivity(publicKey, {
-      type: 'registration',
-      description: `New user registered successfully`,
-      points: 50
-    });
+    // حفظ مباشر في localStorage
+    const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
+    const userKey = publicKey?.toLowerCase();
+    users[userKey] = userWithStats;
+    localStorage.setItem('carvfi_users', JSON.stringify(users));
+    localStorage.setItem('carvfi_current_user', JSON.stringify(userWithStats));
     
-    const updatedUser = StorageService.getUser(publicKey);
-    setUser(updatedUser);
+    // حفظ النشاط
+    const activities = JSON.parse(localStorage.getItem('carvfi_activities') || '{}');
+    if (!activities[userKey]) {
+      activities[userKey] = [];
+    }
+    activities[userKey].unshift({
+      id: Date.now().toString(),
+      type: 'registration',
+      description: 'New user registered successfully',
+      points: 50,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('carvfi_activities', JSON.stringify(activities));
+    
+    console.log('✅ User data saved to localStorage');
+    
+    // تحديث state مباشرة
+    setUser(userWithStats);
     setShowAuthModal(false);
     
-    // الانتقال التلقائي إلى صفحة Rewards Dashboard
-    navigate('/rewards');
+    console.log('✅ User state updated and modal closed');
+    
+    // الانتقال إلى Dashboard بعد تأخير بسيط
+    setTimeout(() => {
+      navigate('/');
+      console.log('🚀 Navigated to dashboard');
+    }, 100);
   };
 
   const handleConnectWallet = async () => {
@@ -550,9 +574,11 @@ const DashboardView = ({ user, balance, walletName, publicKey }) => {
 
 function App() {
   return (
+    <Router>
       <WalletProvider>
         <AppContent />
       </WalletProvider>
+    </Router>
   );
 }
 
