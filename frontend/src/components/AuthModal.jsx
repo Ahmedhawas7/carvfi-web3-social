@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
+import StorageService from '../services/StorageService';
 
 const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
   const { 
@@ -9,27 +11,22 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     error 
   } = useWallet();
   
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('connect');
   const [formData, setFormData] = useState({
-    // البيانات الأساسية
     username: '',
     firstName: '',
     lastName: '',
     email: '',
-    
-    // بيانات Carv
     carvPlayUsername: '',
     carvUID: '',
-    
-    // وسائل التواصل الاجتماعي
     twitter: '',
     telegram: '',
-    
-    // صورة شخصية
     avatar: ''
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // توليد username تلقائي عند فتح المودال
   useEffect(() => {
@@ -67,24 +64,20 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
   const validateForm = () => {
     const errors = {};
 
-    // التحقق من اسم المستخدم
     if (!formData.username) {
       errors.username = 'Username is required';
     } else if (!/^[a-z0-9]+$/.test(formData.username)) {
       errors.username = 'Username must contain only lowercase letters and numbers';
     }
 
-    // التحقق من الاسم الأول
     if (!formData.firstName) {
       errors.firstName = 'First name is required';
     }
 
-    // التحقق من الاسم الأخير
     if (!formData.lastName) {
       errors.lastName = 'Last name is required';
     }
 
-    // التحقق من البريد الإلكتروني
     if (!formData.email) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -95,28 +88,55 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    console.log('📝 Submitting profile data:', formData);
-    console.log('🎯 Calling onAuthSuccess with wallet:', walletAddress);
-    
-    if (onAuthSuccess) {
-      onAuthSuccess({
+    setIsSubmitting(true);
+
+    try {
+      console.log('📝 Submitting profile data:', formData);
+      
+      // حفظ البيانات باستخدام الـ Service الموجود
+      const userData = {
         address: walletAddress,
         type: 'solana',
-        ...formData
-      });
-      console.log('✅ onAuthSuccess called successfully');
-    } else {
-      console.error('❌ onAuthSuccess is not defined!');
+        ...formData,
+        createdAt: new Date().toISOString()
+      };
+
+      const saveResult = StorageService.saveUserData(userData);
+      
+      if (!saveResult.success) {
+        throw new Error('Failed to save user data');
+      }
+
+      console.log('✅ User data saved successfully');
+
+      // استدعاء onAuthSuccess إذا كان موجوداً
+      if (onAuthSuccess) {
+        onAuthSuccess(userData);
+        console.log('✅ onAuthSuccess called successfully');
+      }
+
+      // الانتقال إلى صفحة Rewards Dashboard
+      console.log('🚀 Navigating to rewards dashboard...');
+      navigate('/rewards');
+
+      // إغلاق المودال بعد ثانية
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Error creating account:', error);
+      setFormErrors({ submit: 'Failed to create account. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    onClose();
   };
 
   const generateRandomUsername = () => {
@@ -136,6 +156,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
             <button 
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
+              disabled={isSubmitting}
             >
               ✕
             </button>
@@ -153,7 +174,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
 
           {/* Profile Form */}
           <form onSubmit={handleProfileSubmit} className="space-y-4">
-            {/* البيانات الأساسية */}
+            {/* Basic Information */}
             <div className="border-b pb-4">
               <h3 className="font-semibold text-gray-700 mb-3">Basic Information</h3>
               
@@ -172,11 +193,13 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                         formErrors.username ? 'border-red-500' : 'border-gray-300'
                       }`}
                       required
+                      disabled={isSubmitting}
                     />
                     <button
                       type="button"
                       onClick={generateRandomUsername}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm disabled:opacity-50"
+                      disabled={isSubmitting}
                     >
                       Random
                     </button>
@@ -201,6 +224,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                         formErrors.firstName ? 'border-red-500' : 'border-gray-300'
                       }`}
                       required
+                      disabled={isSubmitting}
                     />
                     {formErrors.firstName && (
                       <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
@@ -220,6 +244,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                         formErrors.lastName ? 'border-red-500' : 'border-gray-300'
                       }`}
                       required
+                      disabled={isSubmitting}
                     />
                     {formErrors.lastName && (
                       <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
@@ -240,6 +265,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                       formErrors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
                     required
+                    disabled={isSubmitting}
                   />
                   {formErrors.email && (
                     <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
@@ -263,6 +289,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                     onChange={(e) => handleInputChange('carvPlayUsername', e.target.value)}
                     placeholder="Your Carv Play username"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -276,6 +303,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                     onChange={(e) => handleInputChange('carvUID', e.target.value)}
                     placeholder="Your Carv UID"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -296,6 +324,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                     onChange={(e) => handleInputChange('twitter', e.target.value)}
                     placeholder="@username"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -309,6 +338,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                     onChange={(e) => handleInputChange('telegram', e.target.value)}
                     placeholder="@username"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -338,6 +368,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                     onChange={(e) => handleInputChange('avatar', e.target.value)}
                     placeholder="Paste image URL"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    disabled={isSubmitting}
                   />
                   <p className="text-xs text-gray-500 mt-1">Paste a direct image URL</p>
                 </div>
@@ -350,19 +381,34 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
               </div>
             )}
 
+            {formErrors.submit && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg">
+                <p className="text-sm">{formErrors.submit}</p>
+              </div>
+            )}
+
             <div className="flex space-x-3 pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                disabled={isSubmitting}
               >
-                Create Account
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Account'
+                )}
               </button>
             </div>
           </form>
