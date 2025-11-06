@@ -1,3 +1,4 @@
+// src/contexts/WalletContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import solanaService from '../services/web3Service';
 
@@ -17,6 +18,7 @@ export const WalletProvider = ({ children }) => {
   const [balance, setBalance] = useState('0');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [walletName, setWalletName] = useState(null);
 
   // Check initial connection status
   useEffect(() => {
@@ -28,6 +30,7 @@ export const WalletProvider = ({ children }) => {
     if (status.isConnected) {
       setIsConnected(true);
       setPublicKey(status.publicKey);
+      setWalletName(status.walletName);
       
       try {
         const accountBalance = await solanaService.getBalance();
@@ -49,6 +52,7 @@ export const WalletProvider = ({ children }) => {
       if (result.success) {
         setIsConnected(true);
         setPublicKey(result.publicKey);
+        setWalletName(result.walletName);
         
         // Get initial balance
         const accountBalance = await solanaService.getBalance();
@@ -69,6 +73,7 @@ export const WalletProvider = ({ children }) => {
     setPublicKey(null);
     setBalance('0');
     setError(null);
+    setWalletName(null);
   };
 
   // Refresh balance
@@ -87,12 +92,13 @@ export const WalletProvider = ({ children }) => {
     isConnected,
     publicKey,
     balance,
+    walletName,
     isLoading,
     error,
     connectWallet,
     disconnectWallet,
     refreshBalance,
-    isBackPackInstalled: solanaService.isBackPackInstalled()
+    isWalletAvailable: solanaService.isWalletAvailable()
   };
 
   return (
