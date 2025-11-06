@@ -1,4 +1,4 @@
-import { Connection, clusterApiUrl, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+// frontend/src/services/web3Service.js
 
 // Carv SVM Testnet configuration
 export const CARV_SVM_CONFIG = {
@@ -19,60 +19,99 @@ export class CarvSolanaService {
   }
 
   setupConnection() {
-    // Use Carv SVM RPC URL
-    this.connection = new Connection(CARV_SVM_CONFIG.url, 'confirmed');
+    // We'll setup connection when wallet connects
+    this.connection = null;
   }
 
-  // Check if BackPack is installed
-  isBackPackInstalled() {
-    return typeof window !== 'undefined' && !!window.backpack;
+  // Check if any Solana wallet is available
+  isWalletAvailable() {
+    if (typeof window === 'undefined') return false;
+    
+    // Check for BackPack
+    if (window.backpack) return true;
+    
+    // Check for other Solana wallets
+    if (window.solana) return true;
+    if (window.phantom) return true;
+    
+    return false;
   }
 
-  // Connect to BackPack wallet
+  // Get wallet provider
+  getWalletProvider() {
+    if (typeof window === 'undefined') return null;
+    
+    if (window.backpack) return window.backpack;
+    if (window.solana) return window.solana;
+    if (window.phantom) return window.phantom;
+    
+    return null;
+  }
+
+  // Connect to wallet
   async connectWallet() {
-    if (!this.isBackPackInstalled()) {
-      throw new Error('Please install BackPack wallet to use this dApp');
+    const provider = this.getWalletProvider();
+    
+    if (!provider) {
+      throw new Error('No Solana wallet found. Please install BackPack, Phantom, or Solflare.');
     }
 
     try {
       // Request connection
-      const response = await window.backpack.connect();
+      await provider.connect();
       
-      this.wallet = window.backpack;
-      this.publicKey = new PublicKey(response.publicKey);
+      this.wallet = provider;
+      this.publicKey = provider.publicKey;
       this.isConnected = true;
 
-      console.log('Connected to BackPack:', this.publicKey.toString());
+      // Setup connection with Carv SVM RPC
+      this.connection = new (await import('@solana/web3.js')).Connection(
+        CARV_SVM_CONFIG.url, 
+        'confirmed'
+      );
+
+      console.log('Connected to wallet:', this.publicKey.toString());
 
       return {
         success: true,
         publicKey: this.publicKey.toString(),
-        network: CARV_SVM_CONFIG.name
+        network: CARV_SVM_CONFIG.name,
+        walletName: this.getWalletName(provider)
       };
     } catch (error) {
-      console.error('BackPack connection failed:', error);
+      console.error('Wallet connection failed:', error);
       throw error;
     }
   }
 
+  // Get wallet name
+  getWalletName(provider) {
+    if (provider === window.backpack) return 'BackPack';
+    if (provider === window.solana) return 'Solana';
+    if (provider === window.phantom) return 'Phantom';
+    return 'Unknown';
+  }
+
   // Disconnect wallet
   disconnectWallet() {
+    if (this.wallet && this.wallet.disconnect) {
+      this.wallet.disconnect();
+    }
+    
     this.wallet = null;
     this.publicKey = null;
     this.isConnected = false;
-    
-    if (window.backpack) {
-      window.backpack.disconnect();
-    }
+    this.connection = null;
   }
 
   // Get balance in CARV
   async getBalance() {
-    if (!this.isConnected || !this.publicKey) {
+    if (!this.isConnected || !this.publicKey || !this.connection) {
       throw new Error('Wallet not connected');
     }
 
     try {
+      const { LAMPORTS_PER_SOL } = await import('@solana/web3.js');
       const balance = await this.connection.getBalance(this.publicKey);
       return balance / LAMPORTS_PER_SOL; // Convert lamports to CARV
     } catch (error) {
@@ -81,53 +120,13 @@ export class CarvSolanaService {
     }
   }
 
-  // Get transaction history
-  async getTransactions(limit = 10) {
-    if (!this.isConnected || !this.publicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    try {
-      const signatures = await this.connection.getSignaturesForAddress(this.publicKey, { limit });
-      return signatures;
-    } catch (error) {
-      console.error('Failed to get transactions:', error);
-      throw error;
-    }
-  }
-
-  // Send transaction (basic implementation)
-  async sendTransaction(toAddress, amount) {
-    if (!this.isConnected || !this.wallet) {
-      throw new Error('Wallet not connected');
-    }
-
-    try {
-      const transaction = await this.createTransferTransaction(toAddress, amount);
-      const signature = await this.wallet.signAndSendTransaction(transaction);
-      return signature;
-    } catch (error) {
-      console.error('Transaction failed:', error);
-      throw error;
-    }
-  }
-
-  async createTransferTransaction(toAddress, amount) {
-    // This is a simplified version - you'd need to implement actual transaction creation
-    // based on your specific requirements
-    return {
-      to: toAddress,
-      amount: amount * LAMPORTS_PER_SOL,
-      memo: 'CARVFi Social Transaction'
-    };
-  }
-
   // Get connection status
   getConnectionStatus() {
     return {
       isConnected: this.isConnected,
       publicKey: this.publicKey ? this.publicKey.toString() : null,
-      network: CARV_SVM_CONFIG.name
+      network: CARV_SVM_CONFIG.name,
+      walletName: this.wallet ? this.getWalletName(this.wallet) : null
     };
   }
 }
