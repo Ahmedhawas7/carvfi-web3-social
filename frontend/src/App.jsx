@@ -37,6 +37,7 @@ const StorageService = {
     
     localStorage.setItem('carvfi_users', JSON.stringify(users));
     localStorage.setItem('carvfi_current_user', JSON.stringify(users[userKey]));
+    console.log('💾 User saved to storage:', users[userKey]);
   },
 
   // جلب بيانات المستخدم
@@ -47,7 +48,9 @@ const StorageService = {
 
   // جلب المستخدم الحالي
   getCurrentUser: () => {
-    return JSON.parse(localStorage.getItem('carvfi_current_user') || 'null');
+    const user = JSON.parse(localStorage.getItem('carvfi_current_user') || 'null');
+    console.log('📂 Current user from storage:', user);
+    return user;
   },
 
   // حفظ النشاطات
@@ -144,19 +147,22 @@ const AppContent = () => {
 
   // مزامنة حالة المحفظة مع نظام المستخدم
   useEffect(() => {
-    console.log('🔄 Wallet state changed:', { isConnected, publicKey, user });
+    console.log('🔄 Wallet state changed:', { isConnected, publicKey });
     
     if (isConnected && publicKey) {
       const savedUser = StorageService.getCurrentUser();
+      console.log('💾 Saved user from storage:', savedUser);
       
       if (savedUser && savedUser.walletAddress === publicKey) {
         // المستخدم مسجل مسبقاً - تحديث البيانات
-        console.log('✅ Existing user found:', savedUser);
+        console.log('✅ Existing user found - updating data');
         const newStreak = StorageService.updateStreak(publicKey);
-        setUser({
+        const updatedUser = {
           ...savedUser,
           streak: newStreak || savedUser.streak
-        });
+        };
+        setUser(updatedUser);
+        console.log('👤 User state set:', updatedUser);
         
         // تسجيل نشاط الدخول
         if (newStreak > 0) {
@@ -169,8 +175,9 @@ const AppContent = () => {
         }
       } else {
         // مستخدم جديد - فتح مودال التسجيل
-        console.log('🆕 New user detected, opening auth modal');
+        console.log('🆕 New user detected - opening auth modal');
         setShowAuthModal(true);
+        setUser(null);
       }
     } else {
       // المحفظة غير متصلة
@@ -179,6 +186,11 @@ const AppContent = () => {
       setShowAuthModal(false);
     }
   }, [isConnected, publicKey]);
+
+  // مراقبة حالة الـ auth modal
+  useEffect(() => {
+    console.log('🎯 Auth modal state changed:', showAuthModal);
+  }, [showAuthModal]);
 
   const handleAuthSuccess = (userData) => {
     console.log('🎉 Authentication successful:', userData);
@@ -214,7 +226,7 @@ const AppContent = () => {
     setUser(updatedUser);
     setShowAuthModal(false);
     
-    console.log('✅ User set successfully:', updatedUser);
+    console.log('✅ User registration completed:', updatedUser);
   };
 
   const handleLogout = () => {
@@ -222,7 +234,6 @@ const AppContent = () => {
     disconnectWallet();
     setUser(null);
     localStorage.removeItem('carvfi_current_user');
-    setShowAuthModal(true);
   };
 
   const handleConnectWallet = async () => {
@@ -259,25 +270,22 @@ const AppContent = () => {
             </p>
           </div>
         </div>
-
-        {/* مودال المصادقة للبيانات الإضافية */}
-        <AuthModal 
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onAuthSuccess={handleAuthSuccess}
-          walletAddress={publicKey}
-        />
       </div>
     );
   }
 
   // إذا كان المستخدم متصلاً ولكن لم يكمل التسجيل
   if (isConnected && publicKey && !user) {
+    console.log('🚨 Rendering auth modal state');
     return (
       <div className="app">
         <AuthModal 
           isOpen={true}
-          onClose={() => {}} 
+          onClose={() => {
+            console.log('❌ Auth modal closed without completion');
+            // إذا المستخدم سكر المودال من غير ما يكمل, نفضي الاتصال
+            disconnectWallet();
+          }} 
           onAuthSuccess={handleAuthSuccess}
           walletAddress={publicKey}
         />
@@ -289,6 +297,34 @@ const AppContent = () => {
               <p>Connected: {publicKey?.slice(0, 8)}...{publicKey?.slice(-6)}</p>
               <p>Wallet: {walletName}</p>
               <p>Balance: {parseFloat(balance).toFixed(4)} CARV</p>
+              <p style={{color: '#f59e0b', fontSize: '14px', marginTop: '10px'}}>
+                ⚠️ Please complete your profile in the modal above
+              </p>
+              
+              {/* زر للمساعدة في حالة وجود مشكلة */}
+              <button 
+                onClick={() => {
+                  console.log('🔄 Manual refresh triggered');
+                  const savedUser = StorageService.getCurrentUser();
+                  console.log('Current saved user:', savedUser);
+                  if (savedUser && savedUser.walletAddress === publicKey) {
+                    setUser(savedUser);
+                    console.log('✅ User manually set from storage');
+                  }
+                }}
+                style={{
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  marginTop: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                Refresh Status
+              </button>
             </div>
           </div>
         </div>
