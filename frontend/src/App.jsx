@@ -549,11 +549,9 @@ const DashboardView = ({ user, balance, walletName, publicKey }) => {
 
 function App() {
   return (
-    <Router>
       <WalletProvider>
         <AppContent />
       </WalletProvider>
-    </Router>
   );
 }
 
