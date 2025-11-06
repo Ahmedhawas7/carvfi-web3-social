@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { WalletProvider, useWallet } from './contexts/WalletContext';
 import AuthModal from './components/AuthModal';
+import LoginPage from './components/LoginPage';
 import RewardsDashboard from './components/RewardsDashboard';
 import UserProfile from './components/UserProfile';
 import StorageService from './services/StorageService';
@@ -11,44 +12,54 @@ const AppContent = () => {
   const { isConnected, publicKey, balance, walletName, connectWallet, disconnectWallet } = useWallet();
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showLoginPage, setShowLoginPage] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const navigate = useNavigate();
 
+  // التحقق من المستخدم الحالي عند التحميل
   useEffect(() => {
-    if (isConnected && publicKey) {
-      const savedUser = StorageService.getCurrentUserData();
-      
-      if (savedUser && savedUser.walletAddress === publicKey) {
-        // تحديث streak والنقاط
-        const newStreak = StorageService.updateStreak(publicKey);
-        const updatedUser = StorageService.getCurrentUserData();
-        
-        setUser(updatedUser);
-        setShowAuthModal(false);
-
-        if (newStreak > 0) {
-          StorageService.saveActivity(publicKey, {
-            type: 'login',
-            description: `Daily login - Streak: ${newStreak} days`,
-            points: 10
-          });
-          StorageService.updatePoints(publicKey, 10);
+    const checkExistingSession = () => {
+      if (isConnected && publicKey) {
+        const existingUser = StorageService.getUser(publicKey);
+        if (existingUser) {
+          console.log('✅ Existing session found, auto-login:', existingUser);
+          setUser(existingUser);
+          setShowLoginPage(false);
+          setShowAuthModal(false);
+        } else {
+          console.log('❌ No existing user, showing login page');
+          setShowLoginPage(true);
         }
-      } else {
-        setShowAuthModal(true);
-        setUser(null);
       }
-    } else {
-      setUser(null);
-      setShowAuthModal(false);
-    }
+    };
+
+    checkExistingSession();
   }, [isConnected, publicKey]);
 
+  const handleLoginSuccess = (userData) => {
+    console.log('✅ Login successful, redirecting to dashboard:', userData);
+    setUser(userData);
+    setShowLoginPage(false);
+    setShowAuthModal(false);
+    navigate('/rewards'); // التوجه مباشرة إلى RewardsDashboard
+  };
+
+  const handleShowRegister = () => {
+    console.log('🔄 Switching to registration');
+    setShowLoginPage(false);
+    setShowAuthModal(true);
+  };
+
+  const handleShowLogin = () => {
+    console.log('🔄 Switching to login');
+    setShowAuthModal(false);
+    setShowLoginPage(true);
+  };
+
   const handleAuthSuccess = async (userData) => {
-    console.log('🎉 handleAuthSuccess called with:', userData);
+    console.log('🎉 Registration successful:', userData);
     
     try {
-      // استخدام StorageService الحقيقي
       const result = StorageService.saveUserData({
         address: publicKey,
         username: userData.username,
@@ -66,24 +77,19 @@ const AppContent = () => {
       if (result.success) {
         console.log('✅ User data saved via StorageService');
         
-        // حفظ نشاط التسجيل
         StorageService.saveActivity(publicKey, {
           type: 'registration',
           description: 'New user registered successfully',
           points: 50
         });
 
-        // تحديث state
         const savedUser = StorageService.getCurrentUserData();
         setUser(savedUser);
         setShowAuthModal(false);
+        setShowLoginPage(false);
         
-        console.log('✅ User state updated and modal closed');
-        
-        // الانتقال إلى Dashboard
-        navigate('/');
-      } else {
-        console.error('❌ Failed to save user data:', result.error);
+        console.log('✅ Redirecting to rewards dashboard');
+        navigate('/rewards'); // التوجه مباشرة إلى RewardsDashboard بعد التسجيل
       }
     } catch (error) {
       console.error('❌ Error in handleAuthSuccess:', error);
@@ -92,6 +98,7 @@ const AppContent = () => {
 
   const handleConnectWallet = async () => {
     try {
+      console.log('🔗 Initiating wallet connection...');
       await connectWallet('backpack');
     } catch (error) {
       console.error('❌ Failed to connect wallet:', error);
@@ -99,14 +106,40 @@ const AppContent = () => {
   };
 
   const handleLogout = () => {
+    console.log('👋 User logging out');
     disconnectWallet();
     setUser(null);
     StorageService.logout();
+    setShowLoginPage(true);
     navigate('/');
   };
 
+  // صفحة التسجيل الجديدة
+  if (showLoginPage) {
+    return (
+      <LoginPage 
+        onLoginSuccess={handleLoginSuccess}
+        onShowRegister={handleShowRegister}
+      />
+    );
+  }
+
+  // شاشة إنشاء حساب جديد
+  if (isConnected && publicKey && showAuthModal) {
+    return (
+      <div className="modern-app">
+        <AuthModal 
+          isOpen={true}
+          onClose={handleShowLogin}
+          onAuthSuccess={handleAuthSuccess}
+          walletAddress={publicKey}
+        />
+      </div>
+    );
+  }
+
   // شاشة الترحيب قبل الربط
-  if (!isConnected) {
+  if (!isConnected && !showLoginPage && !user) {
     return (
       <div className="modern-app">
         <div className="hero-section">
@@ -149,42 +182,20 @@ const AppContent = () => {
                 Connect BackPack Wallet
                 <span className="button-glow"></span>
               </button>
+
+              <div className="auth-options">
+                <p>Already have an account?</p>
+                <button 
+                  className="text-button"
+                  onClick={() => setShowLoginPage(true)}
+                >
+                  Sign In Here
+                </button>
+              </div>
               
               <p className="cta-subtext">
                 Join the future of social finance on Carv SVM
               </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // شاشة إكمال التسجيل
-  if (isConnected && publicKey && !user) {
-    return (
-      <div className="modern-app">
-        <AuthModal 
-          isOpen={true}
-          onClose={() => disconnectWallet()}
-          onAuthSuccess={handleAuthSuccess}
-          walletAddress={publicKey}
-        />
-        <div className="hero-section">
-          <div className="hero-background">
-            <div className="hero-content">
-              <div className="loading-state">
-                <div className="loading-spinner"></div>
-                <h2>Almost There! 🚀</h2>
-                <p>Complete your profile to unlock CARVFi</p>
-                <div className="wallet-preview">
-                  <div className="wallet-badge">
-                    <span className="badge-icon">🎒</span>
-                    Connected with {walletName}
-                  </div>
-                  <p className="wallet-address">{publicKey?.slice(0, 8)}...{publicKey?.slice(-6)}</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -264,13 +275,6 @@ const AppContent = () => {
               <span className="nav-icon">👤</span>
               <span className="nav-label">Profile</span>
             </button>
-            <button
-              className={`nav-item ${activeTab === 'social' ? 'active' : ''}`}
-              onClick={() => setActiveTab('social')}
-            >
-              <span className="nav-icon">🤝</span>
-              <span className="nav-label">Social</span>
-            </button>
           </div>
         </nav>
 
@@ -278,42 +282,37 @@ const AppContent = () => {
         <main className="modern-main">
           <div className="main-container">
             <Routes>
-              {/* Dashboard Route */}
               <Route path="/" element={<DashboardView user={user} balance={balance} walletName={walletName} publicKey={publicKey} />} />
-              
-              {/* Rewards Dashboard Route */}
               <Route path="/rewards" element={<RewardsDashboard user={user} />} />
-              
-              {/* User Profile Route */}
               <Route path="/profile" element={<UserProfile user={user} />} />
-              
-              {/* Fallback to Dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
         </main>
-
-        {/* Auth Modal */}
-        {showAuthModal && (
-          <AuthModal
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-            onAuthSuccess={handleAuthSuccess}
-            walletAddress={publicKey}
-          />
-        )}
       </div>
     );
   }
 
-  return null;
+  return (
+    <div className="modern-app">
+      <div className="hero-section">
+        <div className="hero-background">
+          <div className="hero-content">
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Loading CARVFi...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-// Dashboard Component (المحتوى الأصلي)
+// Dashboard Component (نفس الكود السابق)
 const DashboardView = ({ user, balance, walletName, publicKey }) => {
   return (
     <>
-      {/* Welcome Section */}
       <div className="welcome-banner">
         <div className="welcome-content">
           <h2>Welcome back, {user.firstName}! 👋</h2>
@@ -335,10 +334,7 @@ const DashboardView = ({ user, balance, walletName, publicKey }) => {
         </div>
       </div>
 
-      {/* Dashboard Grid */}
       <div className="dashboard-grid">
-        
-        {/* Profile Card */}
         <div className="dashboard-card profile-card">
           <div className="card-header">
             <h3>👤 Personal Profile</h3>
@@ -366,7 +362,6 @@ const DashboardView = ({ user, balance, walletName, publicKey }) => {
           </div>
         </div>
 
-        {/* Wallet Card */}
         <div className="dashboard-card wallet-card">
           <div className="card-header">
             <h3>💰 Wallet</h3>
@@ -381,65 +376,6 @@ const DashboardView = ({ user, balance, walletName, publicKey }) => {
               <div className="wallet-details">
                 <p className="wallet-type">Connected with {walletName}</p>
                 <p className="wallet-address">{publicKey?.slice(0, 12)}...{publicKey?.slice(-8)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="dashboard-card actions-card">
-          <div className="card-header">
-            <h3>⚡ Quick Actions</h3>
-          </div>
-          <div className="card-content">
-            <div className="actions-grid">
-              <button className="action-btn">
-                <span className="action-icon">🤖</span>
-                AI Assistant
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">💰</span>
-                Earn Rewards
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">🛡️</span>
-                Security Check
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">🌐</span>
-                Social Feed
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="dashboard-card activity-card">
-          <div className="card-header">
-            <h3>📈 Recent Activity</h3>
-          </div>
-          <div className="card-content">
-            <div className="activity-list">
-              <div className="activity-item">
-                <div className="activity-icon">🎉</div>
-                <div className="activity-content">
-                  <p>Account Created</p>
-                  <span>+50 points</span>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon">🔗</div>
-                <div className="activity-content">
-                  <p>Wallet Connected</p>
-                  <span>Now</span>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon">🔥</div>
-                <div className="activity-content">
-                  <p>Daily Login</p>
-                  <span>+10 points</span>
-                </div>
               </div>
             </div>
           </div>
