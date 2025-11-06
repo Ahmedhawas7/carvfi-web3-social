@@ -118,6 +118,20 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     localStorage.setItem('carvfi_users', JSON.stringify(users));
     localStorage.setItem('carvfi_current_user', JSON.stringify(userData));
 
+    // حفظ النشاط
+    const activities = JSON.parse(localStorage.getItem('carvfi_activities') || '{}');
+    if (!activities[userKey]) {
+      activities[userKey] = [];
+    }
+    activities[userKey].unshift({
+      id: Date.now().toString(),
+      type: 'registration',
+      description: 'New user registered successfully',
+      points: 50,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('carvfi_activities', JSON.stringify(activities));
+
     console.log('✅ User data saved successfully');
 
     // استدعاء onAuthSuccess إذا كان موجوداً
@@ -126,12 +140,9 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
       console.log('✅ onAuthSuccess called successfully');
     }
 
-    // 🚀 الحل البسيط - إغلاق المودال فقط
-    console.log('🚀 Closing modal...');
-    onClose();
-
-    // الصفحة ستتحدث تلقائياً لأن App.jsx سيكتشف المستخدم الجديد
-    // ولا حاجة لإعادة التوجيه!
+    // 🚀 الحل النهائي - إعادة تحميل كاملة للصفحة
+    console.log('🚀 Full page reload...');
+    window.location.href = window.location.origin; // إعادة تحميل كاملة من البداية
 
   } catch (error) {
     console.error('❌ Error creating account:', error);
