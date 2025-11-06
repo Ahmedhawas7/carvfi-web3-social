@@ -1,4 +1,3 @@
-// frontend/src/components/AuthModal.jsx
 import React, { useState } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 
