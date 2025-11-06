@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
-import StorageService from '../services/StorageService';
 
 const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
   const { 
@@ -11,7 +9,6 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     error 
   } = useWallet();
   
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('connect');
   const [formData, setFormData] = useState({
     username: '',
@@ -100,52 +97,52 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
     try {
       console.log('📝 Submitting profile data:', formData);
       
-      // التحقق مما إذا كان المستخدم مسجلاً مسبقاً
-      if (StorageService.userExists(walletAddress)) {
-        setFormErrors({ submit: 'Account already exists for this wallet address.' });
-        return;
-      }
-
-      // حفظ البيانات باستخدام الـ Service الموجود
+      // حفظ البيانات في localStorage مباشرة
       const userData = {
         address: walletAddress,
         type: 'solana',
         ...formData,
-        createdAt: new Date().toISOString()
+        points: 50,
+        streak: 1,
+        level: 1,
+        loginCount: 1,
+        lastLogin: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
       };
 
-      const saveResult = StorageService.saveUserData(userData);
-      
-      if (!saveResult.success) {
-        throw new Error('Failed to save user data');
+      // حفظ المستخدم في localStorage
+      const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
+      const userKey = walletAddress?.toLowerCase();
+      users[userKey] = userData;
+      localStorage.setItem('carvfi_users', JSON.stringify(users));
+      localStorage.setItem('carvfi_current_user', JSON.stringify(userData));
+
+      // حفظ النشاط
+      const activities = JSON.parse(localStorage.getItem('carvfi_activities') || '{}');
+      if (!activities[userKey]) {
+        activities[userKey] = [];
       }
-
-      console.log('✅ User data saved successfully:', saveResult.user);
-
-      // إضافة نشاط التسجيل
-      StorageService.saveActivity(walletAddress, {
-        type: 'account_created',
-        description: 'Account created successfully',
-        points: 0
+      activities[userKey].unshift({
+        id: Date.now().toString(),
+        type: 'registration',
+        description: 'New user registered successfully',
+        points: 50,
+        timestamp: new Date().toISOString()
       });
+      localStorage.setItem('carvfi_activities', JSON.stringify(activities));
 
-      // تحديث streak
-      StorageService.updateStreak(walletAddress);
+      console.log('✅ User data saved successfully');
 
       // استدعاء onAuthSuccess إذا كان موجوداً
       if (onAuthSuccess) {
-        onAuthSuccess(saveResult.user);
+        onAuthSuccess(userData);
         console.log('✅ onAuthSuccess called successfully');
       }
 
-      // الانتقال إلى صفحة Rewards Dashboard
-      console.log('🚀 Navigating to rewards dashboard...');
-      navigate('/rewards');
-
-      // إغلاق المودال بعد ثانية
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      // 🚀 الانتقال المباشر إلى صفحة Rewards Dashboard
+      console.log('🚀 Redirecting to rewards dashboard...');
+      window.location.href = '/rewards';
 
     } catch (error) {
       console.error('❌ Error creating account:', error);
@@ -271,7 +268,7 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, walletAddress }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email Address *
-                  </label>
+                    </label>
                   <input
                     type="email"
                     value={formData.email}
