@@ -177,10 +177,6 @@
             box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
         }
 
-        .input-field:hover {
-            border-color: var(--gray-400);
-        }
-
         .social-connections {
             background: var(--gray-100);
             padding: 25px;
@@ -208,29 +204,6 @@
 
         .twitter::before { content: "🐦"; }
         .telegram::before { content: "📱"; }
-        .game::before { content: "🎮"; }
-        .uid::before { content: "🆔"; }
-
-        .file-upload {
-            border: 2px dashed var(--gray-300);
-            border-radius: 12px;
-            padding: 40px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: var(--gray-100);
-        }
-
-        .file-upload:hover {
-            border-color: var(--primary);
-            background: var(--gray-50);
-        }
-
-        .file-upload-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            opacity: 0.7;
-        }
 
         .form-actions {
             display: flex;
@@ -269,20 +242,19 @@
             background: var(--gray-300);
         }
 
-        .username-note {
-            font-size: 0.85rem;
-            color: var(--gray-600);
-            margin-top: 5px;
-            display: block;
-        }
-
-        .username-note strong {
-            color: var(--error);
-        }
-
         .success-message {
             display: none;
             background: var(--success);
+            color: var(--white);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .error-message {
+            display: none;
+            background: var(--error);
             color: var(--white);
             padding: 20px;
             border-radius: 12px;
@@ -334,15 +306,15 @@
             </div>
 
             <div class="wallet-info">
-                <span class="wallet-address">ckpc8hRJxw...72GzWCeM</span>
+                <span class="wallet-address" id="walletDisplay">ckpc8hRJxw...72GzWCeM</span>
                 <span style="margin-right: auto;">محفظة متصلة</span>
             </div>
 
-            <form id="signupForm" action="https://docs.google.com/forms/d/e/1FAIpQLScHJiBHsHYyMjIjxpwRO08Ss3liEbV1IvUbCo-F2WmgmrzNSQ/formResponse" method="POST" target="_blank">
+            <form id="signupForm">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="firstName">الاسم الأول *</label>
-                        <input type="text" id="firstName" name="entry.1906757143" class="input-field" placeholder="أدخل اسمك الأول" required>
+                        <input type="text" id="firstName" class="input-field" placeholder="أدخل اسمك الأول" required>
                     </div>
 
                     <div class="form-group">
@@ -353,20 +325,17 @@
 
                 <div class="form-group">
                     <label for="username">اسم المستخدم *</label>
-                    <input type="text" id="username" class="input-field" placeholder="اختر اسم مستخدم فريد" required>
-                    <span class="username-note">
-                        <strong>ملاحظة:</strong> اسم المستخدم نهائي ولا يمكن تغييره لاحقاً
-                    </span>
+                    <input type="text" id="username" name="username" class="input-field" placeholder="اختر اسم مستخدم فريد" required>
                 </div>
 
                 <div class="form-group">
                     <label for="email">البريد الإلكتروني *</label>
-                    <input type="email" id="email" name="entry.4557104" class="input-field" placeholder="your@email.com" required>
+                    <input type="email" id="email" name="email" class="input-field" placeholder="your@email.com" required>
                 </div>
 
                 <div class="form-group">
                     <label for="wallet">عنوان المحفظة *</label>
-                    <input type="text" id="wallet" name="entry.357471538" class="input-field" placeholder="أدخل عنوان محفظتك" required>
+                    <input type="text" id="wallet" name="wallet" class="input-field" placeholder="أدخل عنوان محفظتك" required>
                 </div>
 
                 <div class="social-connections">
@@ -374,13 +343,13 @@
                     
                     <div class="form-group">
                         <div class="social-input twitter">
-                            <input type="text" name="entry.694284844" class="input-field" placeholder="@username">
+                            <input type="text" id="twitter" name="twitter" class="input-field" placeholder="@username">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <div class="social-input telegram">
-                            <input type="text" name="entry.122770397" class="input-field" placeholder="@username">
+                            <input type="text" id="telegram" name="telegram" class="input-field" placeholder="@username">
                         </div>
                     </div>
                 </div>
@@ -389,8 +358,12 @@
                     ✅ تم إرسال بياناتك بنجاح! سيتم مراجعتها قريباً.
                 </div>
 
+                <div id="errorMessage" class="error-message">
+                    ❌ حدث خطأ في التسجيل
+                </div>
+
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary">إلغاء</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back()">إلغاء</button>
                     <button type="submit" class="btn btn-primary">بدء رحلتي</button>
                 </div>
             </form>
@@ -398,20 +371,64 @@
     </div>
 
     <script>
-        // عند إرسال النموذج
-        document.getElementById('signupForm').addEventListener('submit', function(e) {
-            // لا نمنع الإرسال الطبيعي (يذهب لـ Google Forms)
-            // نضيف رسالة نجاح
-            setTimeout(function() {
-                document.getElementById('successMessage').style.display = 'block';
-            }, 1000);
+        // الرابط الذي حصلت عليه
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxwqqYOry43uTlUkXRliqGEbB_7sC-OBvZ-FxGnwCqNx4jKiio7HGvbiMFGEnYoxa6z1A/exec';
+
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            const button = this.querySelector('button[type="submit"]');
+            const originalText = button.textContent;
+            
+            button.disabled = true;
+            button.textContent = 'جاري التسجيل...';
+            
+            // إخفاء الرسائل السابقة
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('successMessage').textContent = '✅ ' + result.message;
+                    this.reset();
+                } else {
+                    document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('errorMessage').textContent = '❌ ' + result.message;
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = '❌ خطأ في الاتصال: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         });
 
-        // زر الإلغاء
-        document.querySelector('.btn-secondary').addEventListener('click', function() {
-            if (confirm('هل تريد إلغاء إنشاء الحساب؟')) {
-                window.history.back();
+        // تحديث عرض المحفظة
+        function updateWalletDisplay(walletAddress) {
+            if (walletAddress && walletAddress.length > 10) {
+                const display = walletAddress.substring(0, 8) + '...' + walletAddress.substring(walletAddress.length - 6);
+                document.getElementById('walletDisplay').textContent = display;
             }
+        }
+
+        // تحديث عند تغيير حقل المحفظة
+        document.getElementById('wallet').addEventListener('input', function(e) {
+            updateWalletDisplay(e.target.value);
         });
     </script>
 </body>
