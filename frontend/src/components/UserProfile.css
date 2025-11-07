@@ -1,0 +1,228 @@
+.profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.profile-header h1 {
+  color: #1e293b;
+  margin: 0;
+}
+
+.edit-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.edit-btn.edit {
+  background: #7c3aed;
+  color: white;
+}
+
+.edit-btn.cancel {
+  background: #6b7280;
+  color: white;
+}
+
+.edit-btn:hover {
+  transform: translateY(-1px);
+}
+
+.profile-content {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.profile-card {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 40px;
+}
+
+.profile-avatar {
+  text-align: center;
+}
+
+.avatar-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: white;
+  margin: 0 auto 20px;
+}
+
+.profile-avatar h2 {
+  margin: 0 0 8px 0;
+  color: #1e293b;
+}
+
+.user-email {
+  color: #64748b;
+  margin: 0;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.detail-group h3 {
+  color: #374151;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-item label {
+  font-weight: 600;
+  color: #374151;
+  min-width: 120px;
+}
+
+.detail-item span {
+  color: #64748b;
+}
+
+.wallet-address {
+  font-family: monospace;
+  background: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.edit-input {
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 200px;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.stat {
+  background: #f8fafc;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.stat-value.active {
+  color: #10b981;
+}
+
+.action-buttons {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.save-btn {
+  padding: 12px 30px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.message {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .profile-card {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .edit-input {
+    width: 100%;
+  }
+}
