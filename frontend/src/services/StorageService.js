@@ -1,193 +1,122 @@
+// Google Sheets Integration Service
+const API_URL = 'https://script.google.com/macros/s/AKfycbxwqqYOry43uTlUkXRliqGEbB_7sC-OBvZ-FxGnwCqNx4jKiio7HGvbiMFGEnYoxa6z1A/exec';
+
 class StorageService {
-  static getKey(walletAddress, key) {
-    return `carvfi_${walletAddress}_${key}`;
-  }
-
-  static saveUser(user) {
-    if (!user || !user.walletAddress) return;
-    localStorage.setItem(this.getKey(user.walletAddress, 'user'), JSON.stringify(user));
-    localStorage.setItem('carvfi_current_user', user.walletAddress);
-    
-    // إضافة علامة تسجيل الدخول
-    localStorage.setItem('carvfi_is_logged_in', 'true');
-  }
-
-  static getUser(walletAddress) {
-    const data = localStorage.getItem(this.getKey(walletAddress, 'user'));
-    return data ? JSON.parse(data) : null;
-  }
-
-  static getCurrentUser() {
-    const wallet = localStorage.getItem('carvfi_current_user');
-    if (!wallet) return null;
-    return this.getUser(wallet);
-  }
-
-  static saveActivity(walletAddress, activity) {
-    const key = this.getKey(walletAddress, 'activities');
-    const activities = this.getActivities(walletAddress);
-    activities.push({
-      ...activity,
-      date: new Date().toISOString()
-    });
-    localStorage.setItem(key, JSON.stringify(activities));
-  }
-
-  static getActivities(walletAddress) {
-    const data = localStorage.getItem(this.getKey(walletAddress, 'activities'));
-    return data ? JSON.parse(data) : [];
-  }
-
-  static updatePoints(walletAddress, amount = 0) {
-    const user = this.getUser(walletAddress);
-    if (!user) return;
-    user.points = (user.points || 0) + amount;
-    this.saveUser(user);
-  }
-
-  static getPoints(walletAddress) {
-    const user = this.getUser(walletAddress);
-    return user ? user.points || 0 : 0;
-  }
-
-  static updateStreak(walletAddress) {
-    const key = this.getKey(walletAddress, 'streak');
-    const lastLoginKey = this.getKey(walletAddress, 'last_login');
-    const lastLogin = localStorage.getItem(lastLoginKey);
-    const today = new Date().toDateString();
-
-    if (lastLogin === today) {
-      return parseInt(localStorage.getItem(key)) || 1;
-    }
-
-    let streak = parseInt(localStorage.getItem(key)) || 0;
-    if (lastLogin) {
-      const lastDate = new Date(lastLogin);
-      const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        streak += 1;
-      } else if (diffDays > 1) {
-        streak = 1;
-      }
-    } else {
-      streak = 1;
-    }
-
-    localStorage.setItem(lastLoginKey, today);
-    localStorage.setItem(key, streak);
-    return streak;
-  }
-
-  // ===== الدوال الجديدة المطلوبة =====
-
-  // دالة جديدة لحفظ بيانات المستخدم من إنشاء الحساب
-  static saveUserData(userData) {
+  // Register new user in Google Sheets
+  static async registerUser(userData) {
     try {
-      const user = {
-        walletAddress: userData.address,
-        username: userData.username,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        carvPlayUsername: userData.carvPlayUsername,
-        carvUID: userData.carvUID,
-        twitter: userData.twitter,
-        telegram: userData.telegram,
-        avatar: userData.avatar,
-        points: 50, // نقاط بداية
-        streak: 1,
-        level: 1,
-        achievements: [
-          {
-            id: 1,
-            name: "CARV Pioneer",
-            description: "Joined CARV SVM Testnet",
-            icon: "🚀",
-            points: 50,
-            earnedAt: new Date().toISOString(),
-            category: "onboarding"
-          }
-        ],
-        totalAchievements: 1,
-        loginCount: 1,
-        lastLogin: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        type: userData.type || 'solana'
-      };
-
-      this.saveUser(user);
-      return { success: true, user };
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(userData)
+      });
+      
+      const result = await response.json();
+      return result;
     } catch (error) {
-      console.error('StorageService: Failed to save user data', error);
-      return { success: false, error: error.message };
+      console.error('Registration error:', error);
+      return { 
+        success: false, 
+        message: 'Connection error. Please try again.' 
+      };
     }
   }
 
-  // دالة للتحقق من تسجيل الدخول
-  static isUserLoggedIn() {
-    return localStorage.getItem('carvfi_is_logged_in') === 'true';
+  // Check if user exists in Google Sheets
+  static async checkUser(email) {
+    try {
+      const response = await fetch(`${API_URL}?email=${encodeURIComponent(email)}`);
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Check user error:', error);
+      return { 
+        success: false, 
+        message: 'Connection error. Please try again.' 
+      };
+    }
   }
 
-  // دالة للحصول على بيانات المستخدم الحالي
-  static getCurrentUserData() {
-    return this.getCurrentUser();
+  // Save user data to localStorage
+  static saveUserLocally(userData) {
+    try {
+      localStorage.setItem('carvfi_user', JSON.stringify(userData));
+      localStorage.setItem('user_logged_in', 'true');
+      return true;
+    } catch (error) {
+      console.error('Local storage error:', error);
+      return false;
+    }
   }
 
-  // دالة لتسجيل الخروج
+  // Get user data from localStorage
+  static getLocalUser() {
+    try {
+      const userData = localStorage.getItem('carvfi_user');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Get local user error:', error);
+      return null;
+    }
+  }
+
+  // Check if user is logged in
+  static isLoggedIn() {
+    return localStorage.getItem('user_logged_in') === 'true';
+  }
+
+  // Logout user
   static logout() {
-    localStorage.removeItem('carvfi_is_logged_in');
-    localStorage.removeItem('carvfi_current_user');
-  }
-
-  // دالة للتحقق من وجود مستخدم بواسطة العنوان
-  static userExists(walletAddress) {
-    return !!this.getUser(walletAddress);
-  }
-
-  // دالة لجلب جميع بيانات المستخدم
-  static getAllUserData(walletAddress) {
-    const user = this.getUser(walletAddress);
-    if (!user) return null;
-
-    const activities = this.getActivities(walletAddress);
-    const streak = this.updateStreak(walletAddress);
-    const points = this.getPoints(walletAddress);
-
-    return {
-      ...user,
-      activities,
-      streak,
-      points,
-      totalActivities: activities.length
-    };
-  }
-
-  // دالة جديدة لإضافة إنجاز
-  static addAchievement(walletAddress, achievement) {
-    const user = this.getUser(walletAddress);
-    if (!user) return false;
-
-    if (!user.achievements) {
-      user.achievements = [];
+    try {
+      localStorage.removeItem('carvfi_user');
+      localStorage.removeItem('user_logged_in');
+      return true;
+    } catch (error) {
+      console.error('Logout error:', error);
+      return false;
     }
+  }
 
-    const newAchievement = {
-      id: Date.now(),
-      ...achievement,
-      earnedAt: new Date().toISOString()
-    };
-
-    user.achievements.push(newAchievement);
-    user.totalAchievements = user.achievements.length;
-    
-    // إضافة النقاط
-    if (achievement.points) {
-      user.points = (user.points || 0) + achievement.points;
+  // Update user profile
+  static async updateUserProfile(updatedData) {
+    try {
+      // In a real app, you would send this to your backend
+      // For now, we'll just update localStorage
+      const currentUser = this.getLocalUser();
+      if (currentUser) {
+        const updatedUser = { ...currentUser, ...updatedData };
+        this.saveUserLocally(updatedUser);
+        return { success: true, user: updatedUser };
+      }
+      return { success: false, message: 'User not found' };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return { success: false, message: 'Update failed' };
     }
+  }
 
-    this.saveUser(user);
-    return true;
+  // Get user rewards (simulated)
+  static async getUserRewards(userId) {
+    try {
+      // Simulate API call
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            success: true,
+            rewards: [
+              { id: 1, name: 'Welcome Points', points: 50, status: 'claimed' },
+              { id: 2, name: 'Social Interaction', points: 25, status: 'available' },
+              { id: 3, name: 'Community Contribution', points: 75, status: 'pending' }
+            ]
+          });
+        }, 1000);
+      });
+    } catch (error) {
+      console.error('Get rewards error:', error);
+      return { success: false, rewards: [] };
+    }
   }
 }
 
