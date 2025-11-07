@@ -306,8 +306,8 @@
             </div>
 
             <div class="wallet-info">
-                <span class="wallet-address" id="walletDisplay">ckpc8hRJxw...72GzWCeM</span>
-                <span style="margin-right: auto;">محفظة متصلة</span>
+                <span class="wallet-address" id="walletDisplay">أدخل عنوان المحفظة</span>
+                <span style="margin-right: auto;">محفظة</span>
             </div>
 
             <form id="signupForm">
@@ -355,7 +355,7 @@
                 </div>
 
                 <div id="successMessage" class="success-message">
-                    ✅ تم إرسال بياناتك بنجاح! سيتم مراجعتها قريباً.
+                    ✅ تم إنشاء حسابك بنجاح! يتم توجيهك الآن...
                 </div>
 
                 <div id="errorMessage" class="error-message">
@@ -402,9 +402,27 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    // ✅ حفظ بيانات المستخدم محلياً
+                    const userData = {
+                        username: data.username,
+                        email: data.email,
+                        wallet: data.wallet,
+                        twitter: data.twitter,
+                        telegram: data.telegram,
+                        registeredAt: new Date().toISOString()
+                    };
+                    
+                    localStorage.setItem('carvfi_user', JSON.stringify(userData));
+                    localStorage.setItem('user_logged_in', 'true');
+                    
+                    // عرض رسالة النجاح
                     document.getElementById('successMessage').style.display = 'block';
-                    document.getElementById('successMessage').textContent = '✅ ' + result.message;
-                    this.reset();
+                    
+                    // توجيه للصفحة الرئيسية بعد 2 ثانية
+                    setTimeout(() => {
+                        window.location.href = 'https://carvfi-web3-social.vercel.app/';
+                    }, 2000);
+                    
                 } else {
                     document.getElementById('errorMessage').style.display = 'block';
                     document.getElementById('errorMessage').textContent = '❌ ' + result.message;
@@ -429,6 +447,16 @@
         // تحديث عند تغيير حقل المحفظة
         document.getElementById('wallet').addEventListener('input', function(e) {
             updateWalletDisplay(e.target.value);
+        });
+
+        // تحميل بيانات المستخدم إذا كان مسجلاً
+        window.addEventListener('load', function() {
+            const savedUser = localStorage.getItem('carvfi_user');
+            if (savedUser) {
+                const userData = JSON.parse(savedUser);
+                // توجيه فوري إذا كان مسجلاً
+                window.location.href = 'https://carvfi-web3-social.vercel.app/';
+            }
         });
     </script>
 </body>
