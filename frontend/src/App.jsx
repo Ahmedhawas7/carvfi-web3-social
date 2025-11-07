@@ -1,25 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { WalletProvider } from './contexts/WalletContext';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { WalletProvider, useWallet } from './contexts/WalletContext';
 import AuthModal from './components/AuthModal';
 import RewardsDashboard from './components/RewardsDashboard';
 import UserProfile from './components/UserProfile';
 import BotProtection from './components/BotProtection';
 import AIChat from './components/AIChat';
-import StorageService from './services/StorageService';
 import './App.css';
 
-function App() {
+// خدمة تخزين محلية مبسطة
+const StorageService = {
+  getCurrentUser: () => {
+    try {
+      return JSON.parse(localStorage.getItem('carvfi_current_user') || 'null');
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return null;
+    }
+  },
+
+  saveUser: (userData) => {
+    try {
+      localStorage.setItem('carvfi_current_user', JSON.stringify(userData));
+      
+      const users = JSON.parse(localStorage.getItem('carvfi_users') || '{}');
+      const userKey = userData.walletAddress?.toLowerCase();
+      users[userKey] = userData;
+      localStorage.setItem('carvfi_users', JSON.stringify(users));
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving user:', error);
+      return false;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('carvfi_current_user');
+  }
+};
+
+const AppContent = () => {
+  const { isConnected, publicKey, disconnectWallet } = useWallet();
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [activeSection, setActiveSection] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     checkAuthentication();
   }, []);
 
+  useEffect(() => {
+    if (isConnected && publicKey) {
+      const savedUser = StorageService.getCurrentUser();
+      if (savedUser && savedUser.walletAddress === publicKey) {
+        setUser(savedUser);
+        setShowAuthModal(false);
+        navigate('/dashboard');
+      } else {
+        setShowAuthModal(true);
+      }
+    } else {
+      setUser(null);
+    }
+  }, [isConnected, publicKey, navigate]);
+
   const checkAuthentication = () => {
-    const userData = StorageService.getLocalUser();
+    const userData = StorageService.getCurrentUser();
     if (userData) {
       setUser(userData);
     }
@@ -27,14 +75,19 @@ function App() {
   };
 
   const handleLoginSuccess = (userData) => {
-    setUser(userData);
-    setShowAuthModal(false);
+    const success = StorageService.saveUser(userData);
+    if (success) {
+      setUser(userData);
+      setShowAuthModal(false);
+      navigate('/dashboard');
+    }
   };
 
   const handleLogout = () => {
     StorageService.logout();
     setUser(null);
-    setActiveSection('dashboard');
+    disconnectWallet();
+    navigate('/');
   };
 
   if (loading) {
@@ -47,95 +100,144 @@ function App() {
   }
 
   return (
-    <WalletProvider>
-      <div className="App">
-        <BotProtection />
-        
-        {/* Navigation Header */}
-        <header className="app-header">
-          <div className="header-content">
-            <div className="logo-section">
-              <h1 className="logo">🚀 CARVFi</h1>
-              <span className="tagline">Social Finance Platform</span>
-            </div>
+    <div className="App">
+      <BotProtection />
+      
+      {/* Navigation Header */}
+      <header className="app-header">
+        <div className="header-content">
+          <div className="logo-section">
+            <h1 className="logo">🚀 CARVFi</h1>
+            <span className="tagline">Social Finance Platform</span>
+          </div>
 
-            <nav className="nav-section">
-              <button 
-                className={`nav-btn ${activeSection === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveSection('dashboard')}
-              >
-                Dashboard
-              </button>
-              <button 
-                className={`nav-btn ${activeSection === 'profile' ? 'active' : ''}`}
-                onClick={() => setActiveSection('profile')}
-              >
-                Profile
-              </button>
+          <nav className="nav-section">
+            {user ? (
+              <>
+                <button 
+                  className="nav-btn"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Dashboard
+                </button>
+                <button 
+                  className="nav-btn"
+                  onClick={() => navigate('/profile')}
+                >
+                  Profile
+                </button>
+                <button 
+                  className="nav-btn"
+                  onClick={() => navigate('/ai-chat')}
+                >
+                  AI Assistant
+                </button>
+              </>
+            ) : (
               <button 
                 className="nav-btn"
-                onClick={() => setActiveSection('ai-chat')}
+                onClick={() => setShowAuthModal(true)}
               >
-                AI Assistant
+                Features
               </button>
-            </nav>
+            )}
+          </nav>
 
-            <div className="auth-section">
-              {user ? (
-                <div className="user-menu">
-                  <span className="welcome-text">Welcome, {user.username}!</span>
-                  <button className="logout-btn" onClick={handleLogout}>
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  className="login-btn"
-                  onClick={() => setShowAuthModal(true)}
-                >
-                  Login / Sign Up
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="app-main">
-          {!user ? (
-            <div className="welcome-section">
-              <div className="welcome-content">
-                <h2>Welcome to CARVFi</h2>
-                <p>Join our Social Finance platform and start earning rewards today!</p>
-                <button 
-                  className="cta-button"
-                  onClick={() => setShowAuthModal(true)}
-                >
-                  Get Started
+          <div className="auth-section">
+            {user ? (
+              <div className="user-menu">
+                <span className="welcome-text">Welcome, {user.username}!</span>
+                <button className="logout-btn" onClick={handleLogout}>
+                  Logout
                 </button>
               </div>
-            </div>
-          ) : (
-            <>
-              {activeSection === 'dashboard' && <RewardsDashboard />}
-              {activeSection === 'profile' && <UserProfile />}
-              {activeSection === 'ai-chat' && <AIChat />}
-            </>
-          )}
-        </main>
+            ) : (
+              <button 
+                className="login-btn"
+                onClick={() => setShowAuthModal(true)}
+              >
+                Connect Wallet
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
 
-        {/* Auth Modal */}
-        {showAuthModal && (
-          <AuthModal 
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-            onLoginSuccess={handleLoginSuccess}
+      {/* Main Content with Router */}
+      <main className="app-main">
+        <Routes>
+          {/* Public Routes */}
+          <Route 
+            path="/" 
+            element={
+              user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <div className="welcome-section">
+                  <div className="welcome-content">
+                    <h2>Welcome to CARVFi</h2>
+                    <p>Join our Social Finance platform and start earning rewards today!</p>
+                    <button 
+                      className="cta-button"
+                      onClick={() => setShowAuthModal(true)}
+                    >
+                      Get Started
+                    </button>
+                  </div>
+                </div>
+              )
+            } 
           />
-        )}
+          
+          {/* Protected Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              user ? <RewardsDashboard user={user} /> : <Navigate to="/" replace />
+            } 
+          />
+          
+          <Route 
+            path="/profile" 
+            element={
+              user ? <UserProfile user={user} /> : <Navigate to="/" replace />
+            } 
+          />
+          
+          <Route 
+            path="/ai-chat" 
+            element={
+              user ? <AIChat /> : <Navigate to="/" replace />
+            } 
+          />
+          
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
 
-        {/* AI Chat Widget */}
-        <AIChat />
-      </div>
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal 
+          isOpen={showAuthModal}
+          onClose={() => {
+            setShowAuthModal(false);
+            if (!user) {
+              disconnectWallet();
+            }
+          }}
+          onLoginSuccess={handleLoginSuccess}
+          walletAddress={publicKey}
+        />
+      )}
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <WalletProvider>
+      <AppContent />
     </WalletProvider>
   );
 }
